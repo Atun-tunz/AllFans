@@ -1,0 +1,11 @@
+﻿node_modules/
+dist/
+docs/
+
+.trae/
+.DS_Store
+Thumbs.db
+
+*.log
+*.tmp
+*.temp

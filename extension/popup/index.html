@@ -1,0 +1,118 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AllFans 数据概览</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="shell">
+    <div class="noise"></div>
+
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Creator Pulseboard</p>
+        <h1>AllFans</h1>
+        <p class="hero-subtitle">汇总多平台账号数据，并把最新快照推送给本地程序。</p>
+      </div>
+
+      <div class="hero-summary">
+        <div class="summary-card gold">
+          <span class="summary-label">总粉丝</span>
+          <span class="summary-value" id="totalFans">0</span>
+        </div>
+        <div class="summary-card amber">
+          <span class="summary-label">总播放</span>
+          <span class="summary-value" id="totalPlayCount">0</span>
+        </div>
+        <div class="summary-card hot">
+          <span class="summary-label">总点赞</span>
+          <span class="summary-value" id="totalLikeCount">0</span>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">启用平台</span>
+          <span class="summary-value" id="activePlatformCount">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="platform-stage">
+        <div class="panel-head platform-stage-head">
+          <div>
+            <p class="platform-kicker">Platforms</p>
+            <h2 class="panel-title">平台概览</h2>
+          </div>
+        </div>
+        <div id="platformList" class="platform-list"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="update-panel">
+        <span class="update-label">最近同步</span>
+        <span class="update-value" id="lastUpdate">从未更新</span>
+      </div>
+
+      <p class="tip">手动同步会刷新当前打开的平台页面；全量同步会按设置依次打开已启用平台的默认后台页。</p>
+      <div class="feedback" id="feedback" hidden></div>
+
+      <div class="actions actions-wide">
+        <button id="refreshBtn" class="btn btn-primary">同步当前页面</button>
+        <button id="syncAllBtn" class="btn btn-secondary">同步全部已启用平台</button>
+        <button id="pushSnapshotBtn" class="btn btn-secondary">推送当前快照</button>
+        <button id="clearBtn" class="btn btn-secondary">清空缓存</button>
+      </div>
+    </footer>
+
+    <section class="panel settings-panel settings-panel-bottom is-collapsed" id="settingsPanelBottom">
+      <div class="panel-head">
+        <div>
+          <p class="platform-kicker">Settings</p>
+          <h2 class="panel-title">设置</h2>
+        </div>
+        <button id="settingsToggleBtn" class="platform-toggle" type="button" aria-expanded="false">
+          展开
+        </button>
+      </div>
+
+      <div class="settings-panel-body">
+        <div class="settings-grid">
+          <label class="setting-toggle">
+            <input type="checkbox" id="autoUpdateSettingBottom">
+            <span>浏览器运行时允许每日自动同步</span>
+          </label>
+          <label class="setting-toggle">
+            <input type="checkbox" id="externalApiEnabledSettingBottom">
+            <span>允许本地页面只读获取缓存</span>
+          </label>
+          <label class="setting-toggle">
+            <input type="checkbox" id="localBridgeEnabledSettingBottom">
+            <span>启用本地同步桥</span>
+          </label>
+          <label class="setting-field">
+            <span>本地桥接地址</span>
+            <input type="text" id="localBridgeEndpointSettingBottom" spellcheck="false">
+          </label>
+        </div>
+
+        <div class="platform-settings">
+          <div class="platform-settings-head">
+            <span>平台</span>
+            <span>显示</span>
+            <span>同步</span>
+            <span>汇总</span>
+          </div>
+          <div id="platformSettingsListBottom"></div>
+        </div>
+
+        <div class="integration-status" id="localBridgeStatusBottom"></div>
+        <button id="saveSettingsBtnBottom" class="btn btn-secondary settings-save">保存设置</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

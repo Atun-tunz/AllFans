@@ -1,0 +1,13 @@
+{
+  "name": "allfans-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node tests/run-tests.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.5"
+  }
+}

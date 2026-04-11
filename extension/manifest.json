@@ -1,0 +1,56 @@
+﻿{
+  "manifest_version": 3,
+  "name": "AllFans",
+  "version": "2.0.0",
+  "description": "帮助创作者汇总查看多平台后台数据，并推送最新快照到本地程序。",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "alarms"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "http://127.0.0.1:8765/*",
+      "http://localhost:8765/*"
+    ]
+  },
+  "host_permissions": [
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*",
+    "https://api.bilibili.com/*",
+    "https://member.bilibili.com/*",
+    "https://space.bilibili.com/*",
+    "https://www.douyin.com/*",
+    "https://creator.douyin.com/*"
+  ],
+  "background": {
+    "service_worker": "background/main.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://member.bilibili.com/platform/home*"],
+      "js": ["content/bilibili-metrics.js", "content/bilibili-sync.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://creator.douyin.com/*"],
+      "js": ["content/douyin-metrics.js", "content/douyin-sync.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
