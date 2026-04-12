@@ -9,25 +9,76 @@ import {
 test('platformRegistry exposes a stable ordered list of supported platforms', () => {
   assert.deepEqual(
     platformRegistry.map(platform => platform.id),
-    ['bilibili', 'douyin']
+    ['bilibili', 'douyin', 'xiaohongshu']
   );
   assert.deepEqual(
     platformRegistry.map(platform => platform.order),
-    [1, 2]
+    [1, 2, 3]
   );
 });
 
 test('getPlatformById returns platform definitions with sync entrypoints and popup models', () => {
   const platform = getPlatformById('douyin');
-  const model = platform.createPopupCardModel(platform.createEmptyState(), {
-    isEnabled: true,
-    isSyncEnabled: true,
-    isIncludedInSummary: true,
-    justSynced: false
-  });
+  const model = platform.createPopupCardModel(platform.createEmptyState(), {});
 
   assert.equal(platform.id, 'douyin');
   assert.ok(platform.syncEntrypoints.length >= 2);
-  assert.equal(model.title, 'Douyin');
+  assert.equal(model.title, '抖音');
   assert.equal(Array.isArray(model.sections), true);
+});
+
+test('getPlatformById returns Xiaohongshu platform definition with sync entrypoints', () => {
+  const platform = getPlatformById('xiaohongshu');
+  const model = platform.createPopupCardModel(platform.createEmptyState(), {});
+
+  assert.equal(platform.id, 'xiaohongshu');
+  assert.equal(platform.syncEntrypoints.length, 2);
+  assert.equal(model.title, '小红书');
+  assert.equal(Array.isArray(model.sections), true);
+});
+
+test('Xiaohongshu popup card keeps platform color conventions for key metrics', () => {
+  const platform = getPlatformById('xiaohongshu');
+  const model = platform.createPopupCardModel(
+    {
+      displayName: 'Test',
+      fans: 18,
+      accountLikeCount: 22,
+      worksCount: 12,
+      playCount: 3456,
+      likeCount: 789,
+      commentCount: 12,
+      shareCount: 9,
+      favoriteCount: 34,
+      accountStatsLastUpdate: '2026-04-12T09:30:00.000Z',
+      contentStatsLastUpdate: '2026-04-12T10:00:00.000Z',
+      contentStatsExact: true
+    },
+    {}
+  );
+
+  assert.equal(model.sections[0].metrics[0].variant, 'accent');
+  assert.equal(model.sections[0].metrics[1].variant, 'hot');
+  const contentMetrics = model.sections[1].metrics;
+  assert.equal(contentMetrics[0].variant, 'large');
+  assert.equal(contentMetrics.length, 4);
+});
+
+test('Xiaohongshu content script is injected at document_start to catch early note requests', () => {
+  const platform = getPlatformById('xiaohongshu');
+
+  assert.equal(platform.contentScripts[0]?.runAt, 'document_start');
+});
+
+test('Xiaohongshu matches both home and note-manager pages', () => {
+  const platform = getPlatformById('xiaohongshu');
+
+  assert.equal(
+    platform.matchesActiveTab('https://creator.xiaohongshu.com/new/home')?.entrypointId,
+    'home'
+  );
+  assert.equal(
+    platform.matchesActiveTab('https://creator.xiaohongshu.com/new/note-manager')?.entrypointId,
+    'notes'
+  );
 });

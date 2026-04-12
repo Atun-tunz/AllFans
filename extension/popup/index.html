@@ -14,7 +14,7 @@
       <div class="hero-copy">
         <p class="eyebrow">Creator Pulseboard</p>
         <h1>AllFans</h1>
-        <p class="hero-subtitle">汇总多平台账号数据，并把最新快照推送给本地程序。</p>
+        <p class="hero-subtitle">看看全网有多少人发现了宝藏</p>
       </div>
 
       <div class="hero-summary">
@@ -23,7 +23,7 @@
           <span class="summary-value" id="totalFans">0</span>
         </div>
         <div class="summary-card amber">
-          <span class="summary-label">总播放</span>
+          <span class="summary-label">总观看</span>
           <span class="summary-value" id="totalPlayCount">0</span>
         </div>
         <div class="summary-card hot">
@@ -50,19 +50,10 @@
     </main>
 
     <footer class="footer">
-      <div class="update-panel">
-        <span class="update-label">最近同步</span>
-        <span class="update-value" id="lastUpdate">从未更新</span>
-      </div>
-
-      <p class="tip">手动同步会刷新当前打开的平台页面；全量同步会按设置依次打开已启用平台的默认后台页。</p>
       <div class="feedback" id="feedback" hidden></div>
 
-      <div class="actions actions-wide">
-        <button id="refreshBtn" class="btn btn-primary">同步当前页面</button>
-        <button id="syncAllBtn" class="btn btn-secondary">同步全部已启用平台</button>
-        <button id="pushSnapshotBtn" class="btn btn-secondary">推送当前快照</button>
-        <button id="clearBtn" class="btn btn-secondary">清空缓存</button>
+      <div class="actions actions-single">
+        <button id="syncAllBtn" class="btn btn-primary sync-all-button" type="button">一键全网</button>
       </div>
     </footer>
 
@@ -113,6 +104,6 @@
     </section>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

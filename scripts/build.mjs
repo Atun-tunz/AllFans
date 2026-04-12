@@ -32,8 +32,11 @@ async function copyStaticAssets(target) {
   await copyFile(path.join(EXTENSION_ROOT, 'popup', 'popup.css'), path.join(outputRoot, 'popup', 'popup.css'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'bilibili-metrics.js'), path.join(outputRoot, 'content', 'bilibili-metrics.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-metrics.js'), path.join(outputRoot, 'content', 'douyin-metrics.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-metrics.js'), path.join(outputRoot, 'content', 'xiaohongshu-metrics.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-bridge.js'), path.join(outputRoot, 'content', 'xiaohongshu-bridge.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'bilibili-sync.js'), path.join(outputRoot, 'content', 'bilibili-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-sync.js'), path.join(outputRoot, 'content', 'douyin-sync.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-sync.js'), path.join(outputRoot, 'content', 'xiaohongshu-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon16.png'), path.join(outputRoot, 'icons', 'icon16.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon48.png'), path.join(outputRoot, 'icons', 'icon48.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon128.png'), path.join(outputRoot, 'icons', 'icon128.png'));
@@ -46,7 +49,7 @@ async function buildTarget(target) {
   await build({
     entryPoints: {
       'background/background': path.join(EXTENSION_ROOT, 'background', 'main.js'),
-      'popup/app': path.join(EXTENSION_ROOT, 'popup', 'app.js')
+      'popup/main': path.join(EXTENSION_ROOT, 'popup', 'main.js')
     },
     bundle: true,
     format: 'esm',

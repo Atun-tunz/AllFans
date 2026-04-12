@@ -271,15 +271,140 @@ async function syncPlatformInTab({ platformId, entrypointId, tabId, reason, skip
     platformId,
     entrypointId: entrypoint?.id || null,
     scope: response.scope || null,
+    status: 'success',
     data: response.data,
     pushResult
   };
+}
+
+function resolvePlatformSyncEntrypoints(platform, entrypointId = null) {
+  if (entrypointId) {
+    const matched =
+      platform.syncEntrypoints.find(candidate => candidate.id === entrypointId) ||
+      platform.syncEntrypoints.find(candidate => candidate.id === platform.defaultSyncEntrypointId) ||
+      platform.syncEntrypoints[0];
+
+    return matched ? [matched] : [];
+  }
+
+  return [...platform.syncEntrypoints];
+}
+
+function aggregateSyncScope(results) {
+  const scopes = new Set(results.map(result => result.scope).filter(Boolean));
+
+  if (scopes.has('both') || (scopes.has('account') && scopes.has('content'))) {
+    return 'both';
+  }
+
+  if (scopes.has('content')) {
+    return 'content';
+  }
+
+  if (scopes.has('account')) {
+    return 'account';
+  }
+
+  return null;
+}
+
+async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipPush = false }) {
+  const tab = await openOrActivateTargetTab(entrypoint.url, entrypoint.urlPrefix);
+  await waitForTabReady(tab.id, entrypoint.urlPrefix);
+
+  const latestTab = await BrowserApi.tabs.get(tab.id);
+  if (!latestTab.url?.startsWith(entrypoint.urlPrefix)) {
+    throw new Error(`${platform.displayName}页面未进入目标后台，可能尚未登录。`);
+  }
+
+  return syncPlatformInTab({
+    platformId: platform.id,
+    entrypointId: entrypoint.id,
+    tabId: tab.id,
+    reason,
+    skipPush
+  });
 }
 
 async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush = false }) {
   const platform = getPlatformById(platformId);
   if (!platform) {
     throw new Error(`Unsupported platform "${platformId}".`);
+  }
+
+  {
+    const entrypoints = resolvePlatformSyncEntrypoints(platform, entrypointId);
+    const firstEntrypoint = entrypoints[0];
+
+    if (!firstEntrypoint) {
+      throw new Error(`${platform.displayName}没有可用的同步入口。`);
+    }
+
+    if (entrypoints.length === 1) {
+      return openAndSyncSingleEntrypoint({
+        platform,
+        entrypoint: firstEntrypoint,
+        reason,
+        skipPush
+      });
+    }
+
+    const results = [];
+
+    for (const candidate of entrypoints) {
+      try {
+        const result = await openAndSyncSingleEntrypoint({
+          platform,
+          entrypoint: candidate,
+          reason,
+          skipPush: true
+        });
+
+        results.push({
+          entrypointId: candidate.id,
+          success: true,
+          scope: result.scope || null
+        });
+      } catch (error) {
+        results.push({
+          entrypointId: candidate.id,
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    const successResults = results.filter(result => result.success);
+    if (successResults.length === 0) {
+      throw new Error(results[0]?.error || `${platform.displayName}同步失败`);
+    }
+
+    const refreshedData = await StorageManager.getAllData();
+    let pushResult = null;
+    if (!skipPush) {
+      pushResult = await pushSnapshotAndPersistState(
+        [
+          {
+            platformId,
+            entrypointId: null,
+            success: true,
+            reason,
+            scope: aggregateSyncScope(successResults)
+          }
+        ],
+        refreshedData
+      );
+    }
+
+    return {
+      platformId,
+      entrypointId: null,
+      scope: aggregateSyncScope(successResults),
+      status: successResults.length === results.length ? 'success' : 'partial',
+      results,
+      data: refreshedData.platforms[platformId],
+      pushResult
+    };
   }
 
   const entrypoint =
@@ -327,6 +452,7 @@ async function syncAllEnabledPlatforms(reason) {
         platformId,
         entrypointId: result.entrypointId,
         scope: result.scope || null,
+        status: result.status || 'success',
         success: true
       });
     } catch (error) {

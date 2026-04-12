@@ -33,6 +33,12 @@ function createBaseManifest() {
       type: 'module'
     },
     content_scripts: buildContentScripts(),
+    web_accessible_resources: [
+      {
+        resources: ['content/xiaohongshu-bridge.js'],
+        matches: ['https://creator.xiaohongshu.com/*']
+      }
+    ],
     action: {
       default_popup: 'popup/index.html',
       default_icon: {

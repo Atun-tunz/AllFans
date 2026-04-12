@@ -15,6 +15,12 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
     'http://127.0.0.1:8765/*',
     'http://localhost:8765/*'
   ]);
+  assert.deepEqual(manifest.web_accessible_resources, [
+    {
+      resources: ['content/xiaohongshu-bridge.js'],
+      matches: ['https://creator.xiaohongshu.com/*']
+    }
+  ]);
 });
 
 test('firefox manifest omits chromium-only external messaging declaration', () => {

@@ -22,7 +22,8 @@
     "https://member.bilibili.com/*",
     "https://space.bilibili.com/*",
     "https://www.douyin.com/*",
-    "https://creator.douyin.com/*"
+    "https://creator.douyin.com/*",
+    "https://creator.xiaohongshu.com/*"
   ],
   "background": {
     "service_worker": "background/main.js",
@@ -38,6 +39,17 @@
       "matches": ["https://creator.douyin.com/*"],
       "js": ["content/douyin-metrics.js", "content/douyin-sync.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://creator.xiaohongshu.com/*"],
+      "js": ["content/xiaohongshu-metrics.js", "content/xiaohongshu-sync.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/xiaohongshu-bridge.js"],
+      "matches": ["https://creator.xiaohongshu.com/*"]
     }
   ],
   "action": {

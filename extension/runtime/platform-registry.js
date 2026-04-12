@@ -1,7 +1,8 @@
-import { bilibiliPlatform } from '../platforms/bilibili.js';
-import { douyinPlatform } from '../platforms/douyin.js';
+import { bilibiliPlatform } from '../platforms/bilibili-platform.js';
+import { douyinPlatform } from '../platforms/douyin-platform.js';
+import { xiaohongshuPlatform } from '../platforms/xiaohongshu-card-platform.js';
 
-export const platformRegistry = [bilibiliPlatform, douyinPlatform].sort(
+export const platformRegistry = [bilibiliPlatform, douyinPlatform, xiaohongshuPlatform].sort(
   (left, right) => left.order - right.order
 );
 

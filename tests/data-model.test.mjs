@@ -71,13 +71,16 @@ test('calculateSummary aggregates only opted-in platforms', () => {
   data.platforms.bilibili.likeCount = 14710;
   data.platforms.douyin.fans = 2400;
   data.platforms.douyin.playCount = 6818;
-  data.platforms.douyin.likeCount = 85;
+  data.platforms.douyin.accountLikeCount = 85;
+  data.platforms.xiaohongshu.fans = 18;
+  data.platforms.xiaohongshu.playCount = 1234;
+  data.platforms.xiaohongshu.accountLikeCount = 56;
 
   const summary = calculateSummary(data.platforms, {
-    summaryIncludedPlatformIds: ['bilibili']
+    summaryIncludedPlatformIds: ['bilibili', 'xiaohongshu']
   });
 
-  assert.equal(summary.totalFans, 5306);
-  assert.equal(summary.totalPlayCount, 582735);
-  assert.equal(summary.totalLikeCount, 14710);
+  assert.equal(summary.totalFans, 5324);
+  assert.equal(summary.totalPlayCount, 583969);
+  assert.equal(summary.totalLikeCount, 14766);
 });
