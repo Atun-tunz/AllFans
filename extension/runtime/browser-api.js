@@ -39,6 +39,12 @@ export const BrowserApi = {
     onMessage: extensionApi.runtime.onMessage,
     onMessageExternal: extensionApi.runtime.onMessageExternal,
     onStartup: extensionApi.runtime.onStartup,
+    getURL(path) {
+      return extensionApi.runtime.getURL(path);
+    },
+    openOptionsPage() {
+      return callAsync(extensionApi.runtime, 'openOptionsPage');
+    },
     sendMessage(message) {
       return callAsync(extensionApi.runtime, 'sendMessage', [message]);
     }

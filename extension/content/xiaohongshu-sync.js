@@ -28,6 +28,7 @@
   let pendingSnapshot = null;
   let pendingAccountSnapshot = null;
   let activeScanPromise = null;
+  let bridgeReadyPromise = null;
   let bridgeRequestId = 0;
   const pendingBridgeRequests = new Map();
 
@@ -61,17 +62,46 @@
   }
 
   function installBridgeScript() {
-    if (document.getElementById('allfans-xiaohongshu-bridge')) {
-      return;
+    if (bridgeReadyPromise) {
+      return bridgeReadyPromise;
     }
 
     const runtime = getRuntime();
-    const script = document.createElement('script');
-    script.id = 'allfans-xiaohongshu-bridge';
-    script.src = runtime.runtime.getURL('content/xiaohongshu-bridge.js');
-    script.async = false;
+    const existing = document.getElementById('allfans-xiaohongshu-bridge');
+    if (existing?.dataset.ready === 'true') {
+      return Promise.resolve();
+    }
 
-    (document.documentElement || document.head || document.body).appendChild(script);
+    bridgeReadyPromise = new Promise((resolve, reject) => {
+      const script = existing || document.createElement('script');
+
+      const handleLoad = () => {
+        script.dataset.ready = 'true';
+        resolve();
+      };
+
+      const handleError = () => {
+        bridgeReadyPromise = null;
+        reject(new Error('Failed to load Xiaohongshu bridge script'));
+      };
+
+      script.addEventListener('load', handleLoad, { once: true });
+      script.addEventListener('error', handleError, { once: true });
+
+      if (!existing) {
+        script.id = 'allfans-xiaohongshu-bridge';
+        script.src = runtime.runtime.getURL('content/xiaohongshu-bridge.js');
+        script.async = false;
+        (document.documentElement || document.head || document.body).appendChild(script);
+        return;
+      }
+
+      if (script.dataset.ready === 'true') {
+        handleLoad();
+      }
+    });
+
+    return bridgeReadyPromise;
   }
 
   function bindBridgeListener(metrics) {
@@ -369,7 +399,7 @@
       };
       let syncScope = 'none';
 
-      installBridgeScript();
+      await installBridgeScript();
       bindBridgeListener(metrics);
 
       if (!metrics.hasReusablePersonalInfoSnapshot(pendingAccountSnapshot)) {
@@ -415,7 +445,7 @@
       }
     }
 
-    installBridgeScript();
+    await installBridgeScript();
     bindBridgeListener(metrics);
 
     if (!metrics.hasReusablePostedSnapshot(pendingSnapshot)) {
@@ -495,7 +525,7 @@
       return;
     }
 
-    installBridgeScript();
+    await installBridgeScript();
     bindBridgeListener(getMetricsModule());
 
     try {

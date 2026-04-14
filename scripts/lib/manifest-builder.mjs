@@ -47,6 +47,10 @@ function createBaseManifest() {
         '128': 'icons/icon128.png'
       }
     },
+    options_ui: {
+      page: 'options/index.html',
+      open_in_tab: true
+    },
     icons: {
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',

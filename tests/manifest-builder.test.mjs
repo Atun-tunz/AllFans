@@ -8,6 +8,8 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
 
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.background.service_worker, 'background/background.js');
+  assert.equal(manifest.options_ui.page, 'options/index.html');
+  assert.equal(manifest.options_ui.open_in_tab, true);
   assert.ok(manifest.permissions.includes('alarms'));
   assert.ok(manifest.host_permissions.includes('http://127.0.0.1:8765/*'));
   assert.ok(manifest.host_permissions.includes('http://localhost:8765/*'));

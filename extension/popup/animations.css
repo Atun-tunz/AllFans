@@ -1,0 +1,471 @@
+/* ============================================
+   AllFans Popup - 动画样式系统
+   包含：动态背景、过渡规范、骨架屏、响应式
+   ============================================ */
+
+/* --- 1. 动态渐变背景光晕 --- */
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glow-orb-1 {
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(255,122,47,0.4), transparent 70%);
+  animation: floatGlow1 15s ease-in-out infinite;
+}
+
+.glow-orb-2 {
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(255,209,102,0.35), transparent 70%);
+  animation: floatGlow2 18s ease-in-out infinite 3s;
+}
+
+@keyframes floatGlow1 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.22; }
+  33% { transform: translate(20px, -10px) scale(1.1); opacity: 0.28; }
+  66% { transform: translate(-10px, 15px) scale(0.95); opacity: 0.18; }
+}
+
+@keyframes floatGlow2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.16; }
+  33% { transform: translate(-15px, 12px) scale(1.05); opacity: 0.22; }
+  66% { transform: translate(18px, -8px) scale(0.9); opacity: 0.14; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-orb {
+    animation: none !important;
+    opacity: 0.15;
+  }
+}
+
+/* --- 2. 统一过渡规范 --- */
+.transition-smooth {
+  transition: all 140ms ease;
+}
+
+.transition-expand {
+  transition: all 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-fade {
+  transition: opacity 250ms ease-out;
+}
+
+.platform-card {
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease;
+  will-change: transform, box-shadow;
+}
+
+.platform-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  border-color: rgba(255, 209, 102, 0.32);
+}
+
+.platform-card:active {
+  transform: translateY(0) scale(0.995);
+}
+
+/* --- 3. 平台图标系统 --- */
+.platform-icon-wrap {
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.platform-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* --- 4. 加载骨架屏 --- */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-hero {
+  height: 120px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+}
+
+.skeleton-card {
+  height: 80px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+}
+
+.skeleton-button {
+  height: 38px;
+  width: 156px;
+  margin: 16px auto 0;
+  border-radius: 999px;
+}
+
+.skeleton-line {
+  height: 16px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+.skeleton-line-lg {
+  width: 60%;
+  height: 28px;
+}
+
+.skeleton-line-md {
+  width: 80%;
+  height: 14px;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.skeleton-loader {
+  padding: 18px;
+}
+
+/* --- 5. 数字动画辅助 --- */
+.summary-value.is-animating,
+.metric-value.is-animating {
+  display: inline-block;
+  animation: countUp 0.3s ease-out;
+}
+
+@keyframes countUp {
+  from {
+    opacity: 0.7;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- 6. 同步状态 Spinner --- */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.platform-status.is-syncing::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+  background: transparent !important;
+}
+
+/* --- 7. 按钮 --- */
+.btn {
+  appearance: none;
+  border: 0;
+  border-radius: 14px;
+  padding: 11px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    opacity 140ms ease,
+    border-color 140ms ease;
+  will-change: transform, box-shadow;
+}
+
+.btn:hover:not(:disabled):not(.btn-loading) {
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled):not(.btn-loading) {
+  transform: scale(0.97);
+}
+
+.btn:disabled,
+.btn.btn-loading {
+  opacity: 0.62;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@keyframes btnPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.btn.btn-loading {
+  animation: btnPulse 1.5s ease-in-out infinite;
+  cursor: wait !important;
+}
+
+.btn.btn-success {
+  background: linear-gradient(135deg, #4dd08b, #38a169) !important;
+  color: white;
+  box-shadow: 0 8px 20px rgba(77, 208, 139, 0.3);
+}
+
+.btn.btn-error {
+  background: linear-gradient(135deg, #ff6b6b, #e53e3e) !important;
+  color: white;
+  box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+}
+
+.sync-all-button {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent-alt), var(--accent));
+  color: #2a1608;
+  text-align: center;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  transition: all 140ms ease;
+  box-shadow: 0 14px 26px rgba(255, 122, 47, 0.18);
+}
+
+.sync-all-button:hover:not(:disabled):not(.btn-loading) {
+  background: linear-gradient(135deg, #ffd777, #ff9548);
+  box-shadow: 0 16px 28px rgba(255, 122, 47, 0.22);
+  transform: translateY(-1px);
+}
+
+.sync-all-button.btn-success {
+  background: linear-gradient(135deg, #4dd08b, #38a169) !important;
+}
+
+.clear-cache-button {
+  min-height: 46px;
+  transition: all 140ms ease;
+}
+
+.clear-cache-button:hover:not(:disabled):not(.btn-loading) {
+  transform: translateY(-1px);
+}
+
+/* --- 8. Toast 通知 --- */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  z-index: 1000;
+  opacity: 0;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  max-width: calc(100% - 40px);
+  width: 320px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast.toast-visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.toast.toast-hiding {
+  transform: translateX(-50%) translateY(-20px);
+  opacity: 0;
+}
+
+.toast-success {
+  background: rgba(77,208,139,0.15);
+  border: 1px solid rgba(77,208,139,0.35);
+  color: #4dd08b;
+}
+
+.toast-error {
+  background: rgba(255,107,107,0.15);
+  border: 1px solid rgba(255,107,107,0.35);
+  color: #ff6b6b;
+}
+
+.toast-info {
+  background: rgba(255,209,102,0.15);
+  border: 1px solid rgba(255,209,102,0.35);
+  color: #ffd166;
+}
+
+.toast-icon {
+  font-size: 14px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+}
+
+/* --- 9. 展开/收起动画优化 --- */
+.platform-card .platform-sections,
+.platform-card .platform-grid {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height 350ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 280ms ease,
+    margin-top 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 0;
+}
+
+.platform-card:not(.is-collapsed) .platform-sections,
+.platform-card:not(.is-collapsed) .platform-grid {
+  max-height: 600px;
+  opacity: 1;
+  margin-top: 12px;
+  visibility: visible;
+}
+
+.platform-card:not(.is-collapsed) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 214, 0.06),
+    0 10px 22px rgba(0, 0, 0, 0.14);
+  border-color: rgba(255, 209, 102, 0.2);
+}
+
+.platform-card.is-collapsed .platform-sections,
+.platform-card.is-collapsed .platform-grid {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  margin-top: 0 !important;
+  overflow: hidden;
+  display: block !important;
+  visibility: hidden;
+}
+
+/* --- 10. 键盘焦点指示器 --- */
+:focus-visible {
+  outline: 2px solid var(--accent-alt);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+*:focus {
+  outline: none;
+}
+
+.platform-card:focus-within {
+  border-color: rgba(255, 209, 102, 0.4);
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.1);
+}
+
+/* --- 11. 响应式适配 (< 400px) --- */
+@media (max-width: 399px) {
+  html, body {
+    min-width: unset;
+    max-width: unset;
+  }
+
+  body {
+    padding: 4px;
+  }
+
+  .shell {
+    border-radius: 18px;
+  }
+
+  .hero {
+    padding: 14px 12px 8px;
+  }
+
+  .hero h1 {
+    font-size: 24px;
+  }
+
+  .hero-subtitle {
+    font-size: 11px;
+    max-width: 220px;
+  }
+
+  .hero-summary {
+    gap: 6px;
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    padding: 10px 11px;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .summary-value {
+    font-size: 20px;
+  }
+
+  .content {
+    padding: 0 12px 8px;
+  }
+
+  .platform-card {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .platform-name,
+  .platform-name-link {
+    font-size: 16px;
+  }
+
+  .footer {
+    padding: 2px 12px 14px;
+  }
+
+}

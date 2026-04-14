@@ -308,6 +308,22 @@ function aggregateSyncScope(results) {
   return null;
 }
 
+function shouldRetryEntrypointSync(entrypoint, error) {
+  if (!entrypoint || entrypoint.id === 'home') {
+    return false;
+  }
+
+  const message = String(error?.message || error || '');
+  return (
+    message.includes('暂未准备完成') ||
+    message.includes('bridge request timed out') ||
+    message.includes('account bridge request timed out') ||
+    message.includes('Could not establish connection') ||
+    message.includes('Receiving end does not exist') ||
+    /timeout|timed out/i.test(message)
+  );
+}
+
 async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipPush = false }) {
   const tab = await openOrActivateTargetTab(entrypoint.url, entrypoint.urlPrefix);
   await waitForTabReady(tab.id, entrypoint.urlPrefix);
@@ -317,13 +333,30 @@ async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipP
     throw new Error(`${platform.displayName}页面未进入目标后台，可能尚未登录。`);
   }
 
-  return syncPlatformInTab({
-    platformId: platform.id,
-    entrypointId: entrypoint.id,
-    tabId: tab.id,
-    reason,
-    skipPush
-  });
+  try {
+    return await syncPlatformInTab({
+      platformId: platform.id,
+      entrypointId: entrypoint.id,
+      tabId: tab.id,
+      reason,
+      skipPush
+    });
+  } catch (error) {
+    if (!shouldRetryEntrypointSync(entrypoint, error)) {
+      throw error;
+    }
+
+    await BrowserApi.tabs.reload(tab.id);
+    await waitForTabReady(tab.id, entrypoint.urlPrefix);
+
+    return syncPlatformInTab({
+      platformId: platform.id,
+      entrypointId: entrypoint.id,
+      tabId: tab.id,
+      reason,
+      skipPush
+    });
+  }
 }
 
 async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush = false }) {

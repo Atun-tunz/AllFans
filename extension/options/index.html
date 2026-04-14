@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AllFans 设置中心</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-shell">
+    <div class="options-noise"></div>
+
+    <header class="options-hero">
+      <p class="options-kicker">AllFans Control Room</p>
+      <div class="options-hero-row">
+        <div>
+          <h1>设置中心</h1>
+          <p class="options-hero-subtitle">调整同步偏好，管理平台策略</p>
+        </div>
+        <button id="refreshOptionsBtn" class="ghost-button" type="button">刷新状态</button>
+      </div>
+    </header>
+
+    <main class="options-main">
+      <section class="options-panel spotlight-panel">
+        <div class="panel-head">
+          <div>
+            <p class="options-kicker">Overview</p>
+            <h2>同步概况</h2>
+          </div>
+        </div>
+        <div class="overview-grid">
+          <div class="overview-card">
+            <span class="overview-label">启用平台</span>
+            <strong class="overview-value" id="enabledPlatformCount">0</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-label">开启自动同步</span>
+            <strong class="overview-value" id="autoSyncState">关闭</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-label">本地桥状态</span>
+            <strong class="overview-value" id="bridgeState">未知</strong>
+          </div>
+        </div>
+      </section>
+      
+      <section class="options-panel">
+        <div class="panel-head">
+          <div>
+            <p class="options-kicker">Platforms</p>
+            <h2>平台策略</h2>
+          </div>
+        </div>
+        <div class="platform-settings-head">
+          <span>平台</span>
+          <span>显示</span>
+          <span>同步</span>
+          <span>汇总</span>
+        </div>
+        <div id="platformSettingsList"></div>
+      </section>
+
+      <section class="options-panel">
+        <div class="panel-head">
+          <div>
+            <p class="options-kicker">Switches</p>
+            <h2>基础开关</h2>
+          </div>
+        </div>
+        <div class="toggle-grid">
+          <label class="toggle-card">
+            <input type="checkbox" id="autoUpdateSetting">
+            <span class="toggle-copy">
+              <strong>每日自动同步</strong>
+              <span>浏览器运行时按日触发全部已开启平台同步。</span>
+            </span>
+          </label>
+          <label class="toggle-card">
+            <input type="checkbox" id="externalApiEnabledSetting">
+            <span class="toggle-copy">
+              <strong>允许本地页面只读访问</strong>
+              <span>开放当前缓存给本地面板或脚本读取，不允许远程写入。</span>
+            </span>
+          </label>
+          <label class="toggle-card">
+            <input type="checkbox" id="localBridgeEnabledSetting">
+            <span class="toggle-copy">
+              <strong>启用本地桥接</strong>
+              <span>把最新快照主动推送到本地服务端口。</span>
+            </span>
+          </label>
+        </div>
+        <label class="field-card">
+          <span class="field-label">本地桥接地址</span>
+          <input type="text" id="localBridgeEndpointSetting" spellcheck="false" placeholder="http://127.0.0.1:8765">
+        </label>
+      </section>
+
+      <section class="options-panel">
+        <div class="panel-head">
+          <div>
+            <p class="options-kicker">Bridge</p>
+            <h2>本地桥状态</h2>
+          </div>
+        </div>
+        <div class="bridge-status" id="localBridgeStatus"></div>
+      </section>
+    </main>
+
+    <footer class="options-footer">
+      <div class="feedback" id="feedback" hidden></div>
+      <div class="footer-actions">
+        <button id="saveSettingsBtn" class="save-button" type="button">保存设置</button>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

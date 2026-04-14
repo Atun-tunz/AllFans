@@ -70,6 +70,12 @@ test('Xiaohongshu content script is injected at document_start to catch early no
   assert.equal(platform.contentScripts[0]?.runAt, 'document_start');
 });
 
+test('Douyin content script is injected at document_start to catch early work list requests', () => {
+  const platform = getPlatformById('douyin');
+
+  assert.equal(platform.contentScripts[0]?.runAt, 'document_start');
+});
+
 test('Xiaohongshu matches both home and note-manager pages', () => {
   const platform = getPlatformById('xiaohongshu');
 

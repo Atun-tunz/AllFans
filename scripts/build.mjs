@@ -30,6 +30,9 @@ async function copyStaticAssets(target) {
   await copyFile(path.join(EXTENSION_ROOT, 'popup', 'index.html'), path.join(outputRoot, 'popup', 'index.html'));
   await copyFile(path.join(EXTENSION_ROOT, 'popup', 'app.css'), path.join(outputRoot, 'popup', 'app.css'));
   await copyFile(path.join(EXTENSION_ROOT, 'popup', 'popup.css'), path.join(outputRoot, 'popup', 'popup.css'));
+  await copyFile(path.join(EXTENSION_ROOT, 'popup', 'animations.css'), path.join(outputRoot, 'popup', 'animations.css'));
+  await copyFile(path.join(EXTENSION_ROOT, 'options', 'index.html'), path.join(outputRoot, 'options', 'index.html'));
+  await copyFile(path.join(EXTENSION_ROOT, 'options', 'options.css'), path.join(outputRoot, 'options', 'options.css'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'bilibili-metrics.js'), path.join(outputRoot, 'content', 'bilibili-metrics.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-metrics.js'), path.join(outputRoot, 'content', 'douyin-metrics.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-metrics.js'), path.join(outputRoot, 'content', 'xiaohongshu-metrics.js'));
@@ -40,6 +43,14 @@ async function copyStaticAssets(target) {
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon16.png'), path.join(outputRoot, 'icons', 'icon16.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon48.png'), path.join(outputRoot, 'icons', 'icon48.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon128.png'), path.join(outputRoot, 'icons', 'icon128.png'));
+
+  const platformIcons = ['bilibili-icon.svg', 'douyin-icon.svg', 'xiaohongshu-icon.svg'];
+  for (const icon of platformIcons) {
+    await copyFile(
+      path.join(EXTENSION_ROOT, 'icons', 'platforms', icon),
+      path.join(outputRoot, 'icons', 'platforms', icon)
+    );
+  }
 }
 
 async function buildTarget(target) {
@@ -49,7 +60,8 @@ async function buildTarget(target) {
   await build({
     entryPoints: {
       'background/background': path.join(EXTENSION_ROOT, 'background', 'main.js'),
-      'popup/main': path.join(EXTENSION_ROOT, 'popup', 'main.js')
+      'popup/main': path.join(EXTENSION_ROOT, 'popup', 'main.js'),
+      'options/main': path.join(EXTENSION_ROOT, 'options', 'main.js')
     },
     bundle: true,
     format: 'esm',

@@ -1,0 +1,169 @@
+<h2>🎯 第二阶段设计详情</h2>
+<p class="subtitle">数据动画 + 操作反馈 — 让数据变化"看得见"</p>
+
+<div class="section">
+  <h3>1. 数字滚动动画</h3>
+  <p class="subtitle">数据更新时，数字从旧值平滑过渡到新值（1秒内完成）</p>
+
+  <div class="mockup" style="margin-top: 1rem;">
+    <div class="mockup-header">预览：数字滚动效果（点击按钮触发）</div>
+    <div class="mockup-body" style="background: linear-gradient(155deg, #111111, #1b1816); padding: 24px; border-radius: 16px;">
+      <style>
+        @keyframes countUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .number-animate { animation: countUp 0.4s ease-out forwards; }
+      </style>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+        <div style="background: linear-gradient(160deg, rgba(255,209,102,0.12), rgba(255,255,255,0.04)); padding: 14px; border-radius: 14px; border: 1px solid rgba(255,209,102,0.2);">
+          <div style="font-size: 11px; color: rgba(248,241,227,0.68); margin-bottom: 6px;">总粉丝</div>
+          <div id="demo-fans" style="font-size: 26px; font-weight: bold; font-family: 'Bahnschrift', sans-serif; color: #f8f1e3;">128,456</div>
+        </div>
+        <div style="background: linear-gradient(160deg, rgba(255,122,47,0.18), rgba(255,122,47,0.05)); padding: 14px; border-radius: 14px; border: 1px solid rgba(255,122,47,0.28);">
+          <div style="font-size: 11px; color: rgba(248,241,227,0.68); margin-bottom: 6px;">总观看</div>
+          <div id="demo-plays" style="font-size: 26px; font-weight: bold; font-family: 'Bahnschrift', sans-serif; color: #f8f1e3;">2.34M</div>
+        </div>
+      </div>
+      <button onclick="
+        const fans = document.getElementById('demo-fans');
+        const plays = document.getElementById('demo-plays');
+        fans.textContent = (parseInt(fans.textContent.replace(/,/g,'')) + Math.floor(Math.random()*1000+100)).toLocaleString();
+        plays.textContent = ((parseFloat(plays.textContent) + Math.random()*0.2).toFixed(2)) + 'M';
+        fans.classList.remove('number-animate'); fans.offsetHeight; fans.classList.add('number-animate');
+        plays.classList.remove('number-animate'); plays.offsetHeight; plays.classList.add('number-animate');
+      " style="margin-top: 16px; width: 100%; padding: 10px; border-radius: 999px; background: #ff8d3a; color: #2a1608; border: none; cursor: pointer; font-weight: bold; font-size: 12px;">🔄 模拟数据更新</button>
+    </div>
+  </div>
+
+  <div class="pros-cons" style="margin-top: 1rem;">
+    <div class="pros">
+      <h4>✅ 实现要点</h4>
+      <ul>
+        <li>使用 requestAnimationFrame 驱动</li>
+        <li>easeOutExpo 缓动函数（快→慢）</li>
+        <li>支持千分位格式化实时更新</li>
+        <li>数值变化 > 5% 时才触发动画</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>⚠️ 性能考量</h4>
+      <ul>
+        <li>避免同时动画超过 4 个数字</li>
+        <li>popup 关闭时取消动画帧</li>
+        <li>大数值用缩写格式（K/M）跳过逐帧</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 2rem;">
+  <h3>2. 同步状态可视化</h3>
+  <p class="subtitle">让同步过程清晰可见，减少用户焦虑感</p>
+
+  <div class="mockup" style="margin-top: 1rem;">
+    <div class="mockup-header">预览：同步状态指示器</div>
+    <div class="mockup-body" style="background: #1a1a1a; padding: 20px; border-radius: 14px;">
+      <!-- 空闲状态 -->
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(77,208,139,0.08); border-radius: 10px; border: 1px solid rgba(77,208,139,0.25); margin-bottom: 10px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #4dd08b; display: inline-block;"></span>
+        <span style="color: #f8f1e3; font-size: 12px;">已同步 · 刚刚</span>
+      </div>
+
+      <!-- 同步中 -->
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,209,102,0.08); border-radius: 10px; border: 1px solid rgba(255,209,102,0.25); margin-bottom: 10px;">
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        <span style="width: 8px; height: 8px; border-radius: 50%; border: 2px solid transparent; border-top-color: #ffd166; display: inline-block; animation: spin 0.8s linear infinite;"></span>
+        <span style="color: #f8f1e3; font-size: 12px;">同步中...</span>
+      </div>
+
+      <!-- 错误状态 -->
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255,107,107,0.08); border-radius: 10px; border: 1px solid rgba(255,107,107,0.25);">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #ff6b6b; display: inline-block;"></span>
+        <span style="color: #ff6b6b; font-size: 12px;">超时重试</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 2rem;">
+  <h3>3. 操作反馈系统</h3>
+  <p class="subtitle">每次用户操作都有明确的视觉确认</p>
+
+  <div class="cards" style="margin-top: 1rem;">
+    <div class="card" data-choice="toast-feedback" onclick="toggleSelect(this)">
+      <div class="card-image" style="padding: 20px; background: #1a1a1a; border-radius: 12px;">
+        <div style="text-align: center;">
+          <div style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: rgba(77,208,139,0.15); border-radius: 10px; border: 1px solid rgba(77,208,139,0.35); color: #4dd08b; font-size: 13px;">
+            ✓ 设置已更新
+          </div>
+          <p style="color: #666; font-size: 11px; margin-top: 12px;">底部 Toast 提示，3秒后自动消失</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>Toast 通知（推荐）</h3>
+        <p>轻量、不阻塞操作，适合成功/错误反馈</p>
+      </div>
+    </div>
+
+    <div class="card" data-choice="inline-feedback" onclick="toggleSelect(this)">
+      <div class="card-image" style="padding: 20px; background: #1a1a1a; border-radius: 12px;">
+        <div style="padding: 12px; background: rgba(255,255,255,0.04); border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #f8f1e3; font-size: 13px;">保存设置</span>
+            <span style="color: #4dd08b; font-size: 11px;">✓ 已保存</span>
+          </div>
+        </div>
+        <p style="color: #666; font-size: 11px; margin-top: 12px;">按钮旁行内状态变化</p>
+      </div>
+      <div class="card-body">
+        <h3>行内状态提示</h3>
+        <p>直接在操作位置显示结果，更直观</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 2rem;">
+  <h3>4. 加载骨架屏</h3>
+  <p class="subtitle">首次加载数据时的占位效果，提升感知速度</p>
+
+  <div class="mockup" style="margin-top: 1rem;">
+    <div class="mockup-header">预览：骨架屏加载效果</div>
+    <div class="mockup-body" style="background: #1a1a1a; padding: 20px; border-radius: 14px;">
+      <style>
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .skeleton {
+          position: relative;
+          overflow: hidden;
+          background: rgba(255,255,255,0.06);
+          border-radius: 8px;
+        }
+        .skeleton::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+          animation: shimmer 1.5s ease-in-out infinite;
+        }
+      </style>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px;">
+        <div class="skeleton" style="height: 64px;"></div>
+        <div class="skeleton" style="height: 64px;"></div>
+      </div>
+      <div class="skeleton" style="height: 72px; margin-bottom: 10px;"></div>
+      <div class="skeleton" style="height: 72px; margin-bottom: 10px;"></div>
+      <div class="skeleton" style="height: 38px; width: 60%; margin: 0 auto;"></div>
+    </div>
+  </div>
+</div>
+
+<p style="text-align: center; margin-top: 2rem; color: rgba(248,241,227,0.56); font-size: 13px;">
+  请选择操作反馈方式（Toast 或 行内），然后我们进入第三阶段
+</p>

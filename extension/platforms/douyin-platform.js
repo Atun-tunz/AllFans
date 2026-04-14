@@ -10,7 +10,7 @@ export const douyinPlatform = {
     {
       matches: ['https://creator.douyin.com/*'],
       js: ['content/douyin-metrics.js', 'content/douyin-sync.js'],
-      runAt: 'document_idle'
+      runAt: 'document_start'
     }
   ],
   syncEntrypoints: [

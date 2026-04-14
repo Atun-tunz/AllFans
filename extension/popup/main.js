@@ -3,17 +3,20 @@ import { MESSAGE_TYPES } from '../runtime/messages.js';
 import { platformRegistry } from '../runtime/platform-registry.js';
 import { createFeedbackController } from './feedback.js';
 import { formatNumber, formatTime } from './formatters.js';
+import { animateValue, parseDisplayNumber, shouldAnimate } from './number-animation.js';
+import ToastManager from './toast.js';
 
 const SYNC_STATUS_KEEP_MS = 5 * 60 * 1000;
 
 let feedback;
+let toast;
 const expandedPlatforms = new Set();
 const transientSyncState = new Map();
 let syncStateTimer = null;
-let settingsPanelExpanded = false;
 let latestData = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+  toast = new ToastManager();
   feedback = createFeedbackController(document.getElementById('feedback'));
   bindActions();
   loadData();
@@ -21,8 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function bindActions() {
   document.getElementById('syncAllBtn')?.addEventListener('click', syncAllPlatforms);
-  document.getElementById('saveSettingsBtnBottom')?.addEventListener('click', saveSettings);
-  document.getElementById('settingsToggleBtn')?.addEventListener('click', toggleSettingsPanel);
+  document.getElementById('clearCacheBtn')?.addEventListener('click', clearCachedData);
+  document.getElementById('openOptionsBtn')?.addEventListener('click', openOptionsPage);
+  document.addEventListener('keydown', handleGlobalKeydown);
 }
 
 function setSyncAllButtonState(isRunning) {
@@ -36,37 +40,20 @@ function setSyncAllButtonState(isRunning) {
   button.textContent = isRunning ? '同步中' : '一键全网';
 }
 
-function toggleSettingsPanel() {
-  settingsPanelExpanded = !settingsPanelExpanded;
-  syncSettingsPanelState();
-}
-
-function syncSettingsPanelState() {
-  const panel = document.getElementById('settingsPanelBottom');
-  const button = document.getElementById('settingsToggleBtn');
-
-  if (!panel || !button) {
-    return;
-  }
-
-  panel.classList.toggle('is-collapsed', !settingsPanelExpanded);
-  button.setAttribute('aria-expanded', String(settingsPanelExpanded));
-  button.textContent = settingsPanelExpanded ? '收起' : '展开';
-}
-
 function getEnabledPlatforms(data) {
   return platformRegistry.filter(platform => data.settings.enabledPlatformIds.includes(platform.id));
 }
 
 function getPlatformLastUpdate(platformData) {
-  return [
+  const updates = [
     platformData?.lastUpdate,
     platformData?.accountStatsLastUpdate,
     platformData?.contentStatsLastUpdate
   ]
     .filter(Boolean)
-    .sort()
-    .at(-1) || null;
+    .sort();
+
+  return updates.length > 0 ? updates[updates.length - 1] : null;
 }
 
 function isRecentUpdate(isoString) {
@@ -209,6 +196,8 @@ function getPlatformStatusBadge(platform, data) {
 }
 
 async function loadData() {
+  showSkeleton();
+
   try {
     const response = await BrowserApi.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_DATA });
     if (!response?.success) {
@@ -216,10 +205,12 @@ async function loadData() {
     }
 
     latestData = response.data;
+    hideSkeleton();
     renderData(response.data);
   } catch (error) {
+    hideSkeleton();
     console.error('AllFans: failed to load popup data', error);
-    feedback.show('加载数据失败，请稍后重试。', 'error');
+    toast.show('加载数据失败，请稍后重试。', 'error');
   }
 }
 
@@ -254,74 +245,97 @@ async function syncAllPlatforms() {
           : `同步完成，${failedCount} 个平台失败。`;
 
     feedback.show(message, failedCount === 0 ? 'success' : 'error');
+    toast.show(message, failedCount === 0 ? 'success' : 'error');
   } catch (error) {
     console.error('AllFans: failed to sync all platforms', error);
     feedback.show(String(error?.message || '同步失败，请稍后重试。'), 'error');
+    toast.show(String(error?.message || '同步失败，请稍后重试。'), 'error');
   } finally {
     setSyncAllButtonState(false);
   }
 }
 
-async function saveSettings() {
-  const button = document.getElementById('saveSettingsBtnBottom');
+async function openOptionsPage() {
+  try {
+    await BrowserApi.runtime.openOptionsPage();
+  } catch (error) {
+    console.warn('AllFans: runtime.openOptionsPage failed, opening a tab instead', error);
+    await BrowserApi.tabs.create({
+      url: BrowserApi.runtime.getURL('options/index.html'),
+      active: true
+    });
+  }
+}
+
+async function clearCachedData() {
+  const button = document.getElementById('clearCacheBtn');
+  if (!button) {
+    return;
+  }
+
+  const confirmed = window.confirm('确认清理当前扩展缓存数据？');
+  if (!confirmed) {
+    return;
+  }
+
   button.disabled = true;
-  button.textContent = '保存中...';
+  button.textContent = '清理中...';
 
   try {
-    const enabledPlatformIds = [];
-    const syncEnabledPlatformIds = [];
-    const summaryIncludedPlatformIds = [];
-
-    for (const platform of platformRegistry) {
-      if (document.getElementById(`${platform.id}-enabled-bottom`).checked) {
-        enabledPlatformIds.push(platform.id);
-      }
-      if (document.getElementById(`${platform.id}-sync-bottom`).checked) {
-        syncEnabledPlatformIds.push(platform.id);
-      }
-      if (document.getElementById(`${platform.id}-summary-bottom`).checked) {
-        summaryIncludedPlatformIds.push(platform.id);
-      }
-    }
-
-    const response = await BrowserApi.runtime.sendMessage({
-      type: MESSAGE_TYPES.UPDATE_SETTINGS,
-      settings: {
-        autoUpdate: document.getElementById('autoUpdateSettingBottom').checked,
-        externalApiEnabled: document.getElementById('externalApiEnabledSettingBottom').checked,
-        localBridgeEnabled: document.getElementById('localBridgeEnabledSettingBottom').checked,
-        localBridgeEndpoint: document.getElementById('localBridgeEndpointSettingBottom').value.trim(),
-        enabledPlatformIds,
-        syncEnabledPlatformIds,
-        summaryIncludedPlatformIds
-      }
-    });
-
+    const response = await BrowserApi.runtime.sendMessage({ type: MESSAGE_TYPES.CLEAR_DATA });
     if (!response?.success) {
-      throw new Error(response?.error || '保存失败');
+      throw new Error(response?.error || '清理缓存失败');
     }
 
+    transientSyncState.clear();
+    expandedPlatforms.clear();
+    latestData = null;
     await loadData();
-    feedback.show('设置已更新。', 'success');
+    feedback.show('缓存已清理。', 'success');
+    toast.show('缓存已清理。', 'success');
   } catch (error) {
-    console.error('AllFans: failed to save settings', error);
-    feedback.show(String(error?.message || '保存失败，请稍后重试。'), 'error');
+    console.error('AllFans: failed to clear cached data', error);
+    feedback.show(String(error?.message || '清理缓存失败，请稍后重试。'), 'error');
+    toast.show(String(error?.message || '清理缓存失败，请稍后重试。'), 'error');
   } finally {
     button.disabled = false;
-    button.textContent = '保存设置';
+    button.textContent = '清理缓存';
   }
 }
 
 function renderData(data) {
   const enabledPlatforms = getEnabledPlatforms(data);
 
-  document.getElementById('totalFans').textContent = formatNumber(data.summary.totalFans);
-  document.getElementById('totalPlayCount').textContent = formatNumber(data.summary.totalPlayCount);
-  document.getElementById('totalLikeCount').textContent = formatNumber(data.summary.totalLikeCount);
+  const totalFansEl = document.getElementById('totalFans');
+  const oldFans = parseDisplayNumber(totalFansEl.textContent);
+  const newFans = data.summary.totalFans;
+  if (shouldAnimate(oldFans, newFans)) {
+    animateValue(totalFansEl, oldFans, newFans, 1000);
+  } else {
+    totalFansEl.textContent = formatNumber(newFans);
+  }
+
+  const totalPlayCountEl = document.getElementById('totalPlayCount');
+  const oldPlays = parseDisplayNumber(totalPlayCountEl.textContent);
+  const newPlays = data.summary.totalPlayCount;
+  if (shouldAnimate(oldPlays, newPlays)) {
+    animateValue(totalPlayCountEl, oldPlays, newPlays, 1000);
+  } else {
+    totalPlayCountEl.textContent = formatNumber(newPlays);
+  }
+
+  const totalLikeCountEl = document.getElementById('totalLikeCount');
+  const oldLikes = parseDisplayNumber(totalLikeCountEl.textContent);
+  const newLikes = data.summary.totalLikeCount;
+  if (shouldAnimate(oldLikes, newLikes)) {
+    animateValue(totalLikeCountEl, oldLikes, newLikes, 1000);
+  } else {
+    totalLikeCountEl.textContent = formatNumber(newLikes);
+  }
+
   document.getElementById('activePlatformCount').textContent = String(enabledPlatforms.length);
 
   renderPlatformList(data, enabledPlatforms);
-  renderSettings(data);
   scheduleSyncStateRefresh();
 }
 
@@ -352,7 +366,7 @@ function renderPlatformList(data, enabledPlatforms) {
   if (enabledPlatforms.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'platform-empty';
-    empty.textContent = '当前没有启用的平台。你可以在下方设置区重新开启任意平台。';
+    empty.textContent = '当前没有启用的平台。你可以在设置中心重新开启任意平台。';
     container.appendChild(empty);
     return;
   }
@@ -407,7 +421,7 @@ function renderPlatformCard(platform, model, data) {
       </div>
       <div class="platform-head-actions">
         <button
-          class="platform-status platform-status-button tone-${statusBadge.tone}"
+          class="platform-status platform-status-button tone-${statusBadge.tone}${statusBadge.kind === 'running' ? ' is-syncing' : ''}"
           type="button"
           ${statusBadge.disabled ? 'disabled' : ''}
         >${statusBadge.label}</button>
@@ -419,13 +433,19 @@ function renderPlatformCard(platform, model, data) {
   `;
 
   card.querySelector('.platform-toggle').addEventListener('click', () => {
-    if (expandedPlatforms.has(model.id)) {
+    const isCurrentlyExpanded = !card.classList.contains('is-collapsed');
+
+    if (isCurrentlyExpanded) {
+      card.classList.add('is-collapsed');
       expandedPlatforms.delete(model.id);
     } else {
+      card.classList.remove('is-collapsed');
       expandedPlatforms.add(model.id);
     }
 
-    renderPlatformList(latestData, getEnabledPlatforms(latestData));
+    const toggleBtn = card.querySelector('.platform-toggle');
+    toggleBtn.textContent = isCurrentlyExpanded ? '展开' : '收起';
+    toggleBtn.setAttribute('aria-expanded', String(!isCurrentlyExpanded));
   });
 
   card.querySelector('.platform-name-link').addEventListener('click', async () => {
@@ -468,6 +488,12 @@ function renderPlatformCard(platform, model, data) {
           : `${platform.title}已完成同步。`,
         response.data.status === 'partial' ? 'error' : 'success'
       );
+      toast.show(
+        response.data.status === 'partial'
+          ? `${platform.title}已完成部分同步。`
+          : `${platform.title}已完成同步。`,
+        response.data.status === 'partial' ? 'error' : 'success'
+      );
     } catch (error) {
       console.error('AllFans: failed to sync platform workflow', error);
       const badge = mapSyncErrorToBadge(error?.message);
@@ -478,49 +504,99 @@ function renderPlatformCard(platform, model, data) {
       });
       renderPlatformList(latestData, getEnabledPlatforms(latestData));
       feedback.show(String(error?.message || '同步失败，请稍后重试。'), 'error');
+      toast.show(String(error?.message || '同步失败，请稍后重试。'), 'error');
     }
   });
 
   return card;
 }
 
-function renderSettings(data) {
-  syncSettingsPanelState();
-  document.getElementById('autoUpdateSettingBottom').checked = Boolean(data.settings.autoUpdate);
-  document.getElementById('externalApiEnabledSettingBottom').checked = Boolean(
-    data.settings.externalApiEnabled
-  );
-  document.getElementById('localBridgeEnabledSettingBottom').checked = Boolean(
-    data.settings.localBridgeEnabled
-  );
-  document.getElementById('localBridgeEndpointSettingBottom').value =
-    data.settings.localBridgeEndpoint || '';
+function showSkeleton() {
+  const shell = document.querySelector('.shell');
+  const hero = shell.querySelector('.hero');
+  const content = shell.querySelector('.content');
+  const footer = shell.querySelector('.footer');
 
-  const settingsList = document.getElementById('platformSettingsListBottom');
-  settingsList.innerHTML = '';
-
-  for (const platform of platformRegistry) {
-    const row = document.createElement('label');
-    row.className = 'platform-setting-row';
-    row.innerHTML = `
-      <span class="platform-setting-name">
-        <span class="platform-setting-title">${platform.title}</span>
-        <span class="platform-setting-caption">${platform.id}</span>
-      </span>
-      <input type="checkbox" id="${platform.id}-enabled-bottom" ${data.settings.enabledPlatformIds.includes(platform.id) ? 'checked' : ''}>
-      <input type="checkbox" id="${platform.id}-sync-bottom" ${data.settings.syncEnabledPlatformIds.includes(platform.id) ? 'checked' : ''}>
-      <input type="checkbox" id="${platform.id}-summary-bottom" ${data.settings.summaryIncludedPlatformIds.includes(platform.id) ? 'checked' : ''}>
+  let loader = document.getElementById('skeletonLoader');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.className = 'skeleton-loader';
+    loader.id = 'skeletonLoader';
+    loader.innerHTML = `
+      <div class="skeleton skeleton-hero">
+        <div class="skeleton-line skeleton-line-lg"></div>
+        <div class="skeleton-line skeleton-line-md"></div>
+      </div>
+      <div class="skeleton-grid">
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+      </div>
+      <div class="skeleton skeleton-button"></div>
     `;
-    settingsList.appendChild(row);
+    shell.insertBefore(loader, hero);
   }
 
-  const bridge = data.integrations.localBridge;
-  const bridgeStatus = document.getElementById('localBridgeStatusBottom');
-  bridgeStatus.textContent = [
-    `状态：${bridge.lastStatus || 'idle'}`,
-    bridge.lastSuccessAt ? `最近成功：${formatTime(bridge.lastSuccessAt)}` : '最近成功：暂无',
-    bridge.lastError ? `最近错误：${bridge.lastError}` : null
-  ]
-    .filter(Boolean)
-    .join(' | ');
+  loader.style.display = '';
+
+  if (hero) hero.style.opacity = '0';
+  if (content) content.style.display = 'none';
+  if (footer) footer.style.display = 'none';
+}
+
+function hideSkeleton() {
+  const loader = document.getElementById('skeletonLoader');
+  if (loader) {
+    loader.style.opacity = '0';
+    setTimeout(() => {
+      if (loader.parentNode) loader.remove();
+    }, 280);
+  }
+
+  const shell = document.querySelector('.shell');
+  const hero = shell.querySelector('.hero');
+  const content = shell.querySelector('.content');
+  const footer = shell.querySelector('.footer');
+
+  if (hero) hero.style.opacity = '';
+  if (content) content.style.display = '';
+  if (footer) footer.style.display = '';
+}
+
+function handleGlobalKeydown(e) {
+  switch (e.key) {
+    case 'Escape':
+      handleEscapeKey(e);
+      break;
+    case 'ArrowUp':
+    case 'ArrowDown':
+      handleArrowKeyNav(e);
+      break;
+  }
+}
+
+function handleEscapeKey(e) {
+  const expandedCards = document.querySelectorAll('.platform-card:not(.is-collapsed)');
+  if (expandedCards.length > 0) {
+    const lastExpanded = expandedCards[expandedCards.length - 1];
+    lastExpanded.querySelector('.platform-toggle')?.click();
+    e.preventDefault();
+  }
+}
+
+function handleArrowKeyNav(e) {
+  const focusedCard = document.activeElement.closest('.platform-card');
+  if (!focusedCard) return;
+
+  const cards = Array.from(document.querySelectorAll('.platform-card'));
+  const currentIndex = cards.indexOf(focusedCard);
+
+  let nextIndex;
+  if (e.key === 'ArrowUp') {
+    nextIndex = currentIndex > 0 ? currentIndex - 1 : cards.length - 1;
+  } else {
+    nextIndex = currentIndex < cards.length - 1 ? currentIndex + 1 : 0;
+  }
+
+  cards[nextIndex].querySelector('.platform-name-link')?.focus();
+  e.preventDefault();
 }

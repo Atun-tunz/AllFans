@@ -25,3 +25,15 @@ test('popup keeps compact metrics visible when a platform without data is expand
     /\.platform-card\.has-data:not\(\.is-collapsed\)\s+\.platform-compact\s*\{\s*display:\s*none\s*!important;/m
   );
 });
+
+test('popup toggle handler collapses expanded cards and expands collapsed cards', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'popup', 'main.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(
+    script,
+    /if\s*\(isCurrentlyExpanded\)\s*\{\s*card\.classList\.add\('is-collapsed'\);\s*expandedPlatforms\.delete\(model\.id\);\s*\}\s*else\s*\{\s*card\.classList\.remove\('is-collapsed'\);\s*expandedPlatforms\.add\(model\.id\);\s*\}/m
+  );
+  assert.match(script, /toggleBtn\.textContent = isCurrentlyExpanded \? '展开' : '收起';/);
+  assert.match(script, /toggleBtn\.setAttribute\('aria-expanded', String\(!isCurrentlyExpanded\)\);/);
+});
