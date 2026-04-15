@@ -287,6 +287,14 @@ function resolvePlatformSyncEntrypoints(platform, entrypointId = null) {
     return matched ? [matched] : [];
   }
 
+  if (platform.useOnlyDefaultSyncEntrypoint) {
+    const matched =
+      platform.syncEntrypoints.find(candidate => candidate.id === platform.defaultSyncEntrypointId) ||
+      platform.syncEntrypoints[0];
+
+    return matched ? [matched] : [];
+  }
+
   return [...platform.syncEntrypoints];
 }
 

@@ -180,7 +180,9 @@ function getPlatformStatusBadge(platform, data) {
     if (accountRecent || contentRecent) {
       return { label: '部分同步', tone: 'warning', disabled: false };
     }
-  } else if (genericRecent || accountRecent || contentRecent) {
+  }
+
+  if (genericRecent || accountRecent || contentRecent) {
     return {
       label: '已同步',
       tone: 'success',

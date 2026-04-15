@@ -18,6 +18,18 @@
     return String(url).includes('/janus/douyin/creator/pc/work_list');
   }
 
+  function hasUsableWorkListResponse(response) {
+    return response?.status_code === 0 && Array.isArray(response?.aweme_list);
+  }
+
+  function hasReusableWorkListSnapshot(snapshot) {
+    return Boolean(
+      snapshot?.url &&
+        isWorkListResponseUrl(snapshot.url) &&
+        hasUsableWorkListResponse(snapshot?.response)
+    );
+  }
+
   function buildNextWorkListUrl(url, nextCursor) {
     const target = new URL(String(url));
     target.searchParams.set('max_cursor', String(nextCursor));
@@ -92,14 +104,17 @@
 
     patch.scannedItemCount = patch.worksCount;
     patch.contentStatsExact =
-      patch.worksCount > 0 &&
-      (patch.totalWorksCount === 0 || patch.totalWorksCount === patch.worksCount);
+      normalizeMetricValue(state?.responseCount) > 0 &&
+      patch.totalWorksCount === patch.worksCount;
 
     return patch;
   }
 
   function hasSufficientDouyinData(platformPatch) {
-    return Number(platformPatch?.worksCount) > 0 && Number(platformPatch?.playCount) > 0;
+    return (
+      Number(platformPatch?.worksCount) > 0 ||
+      (Boolean(platformPatch?.contentStatsExact) && Number(platformPatch?.totalWorksCount) === 0)
+    );
   }
 
   function hasSufficientDouyinAccountData(platformPatch) {
@@ -114,6 +129,8 @@
     normalizeMetricValue,
     createContentScanState,
     isWorkListResponseUrl,
+    hasUsableWorkListResponse,
+    hasReusableWorkListSnapshot,
     buildNextWorkListUrl,
     buildAccountPlatformPatch,
     mergeContentResponse,

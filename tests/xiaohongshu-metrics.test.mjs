@@ -421,3 +421,35 @@ test('hasSufficientXiaohongshuData accepts notes even when aggregated play count
     true
   );
 });
+
+test('buildContentPlatformPatch marks exact empty note scans as successful zero-work results', () => {
+  let state = createContentScanState();
+
+  state = mergeContentResponse(state, {
+    data: {
+      notes: [],
+      tags: [{ note_count: 0 }]
+    }
+  });
+
+  const patch = buildContentPlatformPatch(state, {
+    updateSource: 'https://creator.xiaohongshu.com/new/note-manager',
+    timestamp: '2026-04-15T11:00:00.000Z'
+  });
+
+  assert.equal(patch.worksCount, 0);
+  assert.equal(patch.totalWorksCount, 0);
+  assert.equal(patch.scannedItemCount, 0);
+  assert.equal(patch.contentStatsExact, true);
+});
+
+test('hasSufficientXiaohongshuData accepts exact empty scans with zero notes', () => {
+  assert.equal(
+    hasSufficientXiaohongshuData({
+      worksCount: 0,
+      totalWorksCount: 0,
+      contentStatsExact: true
+    }),
+    true
+  );
+});

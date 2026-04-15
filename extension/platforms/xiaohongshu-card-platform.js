@@ -1,5 +1,21 @@
 import { formatNumber, formatTime } from '../popup/formatters.js';
 
+function buildContentMeta(platformData) {
+  const parts = [`\u6700\u8fd1\u540c\u6b65\uff1a${formatTime(platformData.contentStatsLastUpdate)}`];
+  const worksCount = Number(platformData?.worksCount) || 0;
+  const totalWorksCount = Number(platformData?.totalWorksCount) || 0;
+
+  if (platformData?.contentStatsExact && totalWorksCount === 0) {
+    parts.push('\u4f5c\u54c1 0');
+  } else if (totalWorksCount > 0 && totalWorksCount !== worksCount) {
+    parts.push(`\u4f5c\u54c1 ${formatNumber(worksCount)} / ${formatNumber(totalWorksCount)}`);
+  } else {
+    parts.push(`\u4f5c\u54c1 ${formatNumber(worksCount)}`);
+  }
+
+  return parts.join(' | ');
+}
+
 export const xiaohongshuPlatform = {
   id: 'xiaohongshu',
   displayName: '小红书',
@@ -30,6 +46,7 @@ export const xiaohongshuPlatform = {
     }
   ],
   defaultSyncEntrypointId: 'notes',
+  useOnlyDefaultSyncEntrypoint: true,
   createEmptyState() {
     return {
       displayName: '',
@@ -111,6 +128,11 @@ export const xiaohongshuPlatform = {
           { label: '分享量', value: formatNumber(platformData?.shareCount || 0) }
         ]
       });
+    }
+
+    const contentSection = sections.find(section => section.key === 'content');
+    if (contentSection) {
+      contentSection.meta = buildContentMeta(platformData);
     }
 
     return {

@@ -211,8 +211,9 @@
     patch.scannedItemCount = patch.worksCount;
     patch.totalWorksCount = Math.max(patch.totalWorksCount, patch.worksCount);
     patch.contentStatsExact =
-      patch.worksCount > 0 &&
-      (Boolean(state?.reachedEnd) || patch.totalWorksCount === patch.worksCount);
+      Boolean(state?.reachedEnd) ||
+      (patch.totalWorksCount === patch.worksCount &&
+        (patch.worksCount > 0 || normalizeMetricValue(state?.responseCount) > 0));
 
     return patch;
   }
@@ -234,7 +235,8 @@
       Number(platformPatch?.likeCount) > 0 ||
       Number(platformPatch?.commentCount) > 0 ||
       Number(platformPatch?.shareCount) > 0 ||
-      Number(platformPatch?.favoriteCount) > 0
+      Number(platformPatch?.favoriteCount) > 0 ||
+      (Boolean(platformPatch?.contentStatsExact) && Number(platformPatch?.totalWorksCount) === 0)
     );
   }
 

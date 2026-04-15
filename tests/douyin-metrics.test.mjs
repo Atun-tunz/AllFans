@@ -213,7 +213,7 @@ test('hasSufficientDouyinData accepts partial content scans with at least one it
   assert.equal(
     hasSufficientDouyinData({
       worksCount: 1,
-      playCount: 84639,
+      playCount: 0,
       contentStatsExact: true
     }),
     true
@@ -226,6 +226,37 @@ test('hasSufficientDouyinData accepts partial content scans with at least one it
       contentStatsExact: false
     }),
     false
+  );
+});
+
+test('buildContentPlatformPatch marks exact empty scans as successful zero-work results', () => {
+  let state = createContentScanState();
+
+  state = mergeContentResponse(state, {
+    status_code: 0,
+    total: 0,
+    aweme_list: []
+  });
+
+  const patch = buildContentPlatformPatch(state, {
+    updateSource: 'https://creator.douyin.com/creator-micro/content/manage',
+    timestamp: '2026-04-15T10:00:00.000Z'
+  });
+
+  assert.equal(patch.worksCount, 0);
+  assert.equal(patch.totalWorksCount, 0);
+  assert.equal(patch.scannedItemCount, 0);
+  assert.equal(patch.contentStatsExact, true);
+});
+
+test('hasSufficientDouyinData accepts exact empty scans with zero works', () => {
+  assert.equal(
+    hasSufficientDouyinData({
+      worksCount: 0,
+      totalWorksCount: 0,
+      contentStatsExact: true
+    }),
+    true
   );
 });
 

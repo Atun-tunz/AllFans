@@ -15,7 +15,7 @@
   const MANAGE_PATH_PREFIX = '/creator-micro/content/manage';
   const ACCOUNT_INFO_URL = 'https://creator.douyin.com/web/api/media/user/info/';
   const WAIT_OPTIONS = {
-    timeoutMs: 15000,
+    timeoutMs: 30000,
     intervalMs: 300,
     maxPages: 50
   };
@@ -158,6 +158,10 @@
   }
 
   async function seedFromKnownRequests(metrics) {
+    if (metrics.hasReusableWorkListSnapshot(pendingSnapshot)) {
+      return;
+    }
+
     const urls = getKnownWorkListUrls(metrics);
 
     for (const url of urls) {
@@ -167,9 +171,14 @@
           continue;
         }
 
+        const payload = await response.json();
+        if (!metrics.hasUsableWorkListResponse(payload)) {
+          continue;
+        }
+
         pendingSnapshot = {
           url,
-          response: await response.json()
+          response: payload
         };
         return;
       } catch (error) {
@@ -178,14 +187,11 @@
     }
   }
 
-  async function waitForWorkListSnapshot() {
+  async function waitForWorkListSnapshot(metrics) {
     const startedAt = Date.now();
 
     while (Date.now() - startedAt < WAIT_OPTIONS.timeoutMs) {
-      if (
-        pendingSnapshot?.response?.status_code === 0 &&
-        Array.isArray(pendingSnapshot?.response?.aweme_list)
-      ) {
+      if (metrics.hasReusableWorkListSnapshot(pendingSnapshot)) {
         return pendingSnapshot;
       }
 
@@ -207,7 +213,7 @@
   async function collectAllWorkListData(metrics) {
     await seedFromKnownRequests(metrics);
 
-    const firstSnapshot = await waitForWorkListSnapshot();
+    const firstSnapshot = await waitForWorkListSnapshot(metrics);
     if (!firstSnapshot) {
       return null;
     }
@@ -305,7 +311,9 @@
     }
 
     if (isManagePage()) {
-      pendingSnapshot = null;
+      if (!metrics.hasReusableWorkListSnapshot(pendingSnapshot)) {
+        pendingSnapshot = null;
+      }
       installBridgeScript();
       bindBridgeListener(metrics);
 

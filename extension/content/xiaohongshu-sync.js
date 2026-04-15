@@ -19,7 +19,7 @@
   const HOME_PATH_PREFIX = '/new/home';
   const NOTE_MANAGER_PATH_PREFIX = '/new/note-manager';
   const WAIT_OPTIONS = {
-    timeoutMs: 15000,
+    timeoutMs: 30000,
     intervalMs: 300,
     maxPages: 200
   };
@@ -324,6 +324,10 @@
     let page = firstPage + 1;
 
     while (page < WAIT_OPTIONS.maxPages) {
+      if (state.total > 0 && state.scannedItemCount >= state.total) {
+        break;
+      }
+
       const pageUrl = metrics.buildNextPostedNotesUrl(baseUrl, page);
       let response;
 
