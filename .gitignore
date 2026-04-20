@@ -1,15 +1,21 @@
-﻿node_modules/
+node_modules/
 dist/
 
 .trae/
 .DS_Store
 Thumbs.db
 
+PACKAGING.md
+
 *.log
 *.tmp
 *.temp
 docs/*
 !docs/privacy-policy.md
+!docs/README.md
+!docs/index.md
+!docs/add-platform-guide.md
+!docs/superpowers/
 
 .superpowers/
 *.zip
