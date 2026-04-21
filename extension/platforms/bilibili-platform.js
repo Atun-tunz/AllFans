@@ -1,9 +1,9 @@
-import { formatChange, formatNumber, formatTime } from '../popup/formatters.js';
+import { createSingleSyncCardModel } from './platform-card-model.js';
 
 export const bilibiliPlatform = {
   id: 'bilibili',
-  displayName: '哔哩哔哩',
-  title: '哔哩哔哩',
+  displayName: '\u54d4\u54e9\u54d4\u54e9',
+  title: '\u54d4\u54e9\u54d4\u54e9',
   order: 1,
   hostPermissions: [
     'https://api.bilibili.com/*',
@@ -20,13 +20,52 @@ export const bilibiliPlatform = {
   syncEntrypoints: [
     {
       id: 'home',
-      label: '打开哔哩哔哩创作中心首页',
-      actionLabel: '同步数据',
+      label: '\u6253\u5f00\u54d4\u54e9\u54d4\u54e9\u521b\u4f5c\u4e2d\u5fc3\u9996\u9875',
+      actionLabel: '\u540c\u6b65\u6570\u636e',
       url: 'https://member.bilibili.com/platform/home',
       urlPrefix: 'https://member.bilibili.com/platform/home'
     }
   ],
   defaultSyncEntrypointId: 'home',
+  card: {
+    mode: 'single',
+    homeUrl: 'https://member.bilibili.com/platform/home',
+    accountNameFallback: '\u7b49\u5f85\u8bc6\u522b\u8d26\u53f7',
+    compactMetricKeys: ['fans', 'playCount'],
+    sections: [
+      {
+        key: 'account',
+        title: '\u8d26\u53f7\u6982\u89c8',
+        syncField: 'lastUpdate',
+        metrics: [
+          {
+            key: 'fans',
+            label: '\u7c89\u4e1d',
+            variant: 'accent',
+            inlineChangeKey: 'fansChangeToday'
+          },
+          {
+            key: 'likeCount',
+            label: '\u7d2f\u8ba1\u83b7\u8d5e',
+            variant: 'hot'
+          }
+        ]
+      },
+      {
+        key: 'content',
+        title: '\u4f5c\u54c1\u6c47\u603b',
+        syncField: 'lastUpdate',
+        metrics: [
+          { key: 'playCount', label: '\u89c2\u770b\u6570', variant: 'large' },
+          { key: 'favoriteCount', label: '\u6536\u85cf\u91cf' },
+          { key: 'commentCount', label: '\u8bc4\u8bba\u91cf' },
+          { key: 'shareCount', label: '\u5206\u4eab\u91cf' },
+          { key: 'danmakuCount', label: '\u5f39\u5e55\u91cf' },
+          { key: 'coinCount', label: '\u6295\u5e01\u91cf' }
+        ]
+      }
+    ]
+  },
   createEmptyState() {
     return {
       uid: 0,
@@ -56,64 +95,13 @@ export const bilibiliPlatform = {
       return {
         platformId: 'bilibili',
         entrypointId: 'home',
-        platformName: '哔哩哔哩'
+        platformName: '\u54d4\u54e9\u54d4\u54e9'
       };
     }
 
     return null;
   },
   createPopupCardModel(platformData) {
-    const hasData = Boolean(platformData?.lastUpdate);
-    const sections = [];
-
-    if (hasData) {
-      sections.push({
-        key: 'account',
-        title: '账号概览',
-        meta: `最近同步：${formatTime(platformData.lastUpdate)}`,
-        metrics: [
-          {
-            label: '粉丝',
-            value: formatNumber(platformData?.fans || 0),
-            variant: 'accent',
-            inlineChange: formatChange(platformData?.fansChangeToday || 0),
-            inlineChangeTone: (platformData?.fansChangeToday || 0) >= 0 ? 'success' : 'danger'
-          },
-          {
-            label: '累计获赞',
-            value: formatNumber(platformData?.likeCount || 0),
-            variant: 'hot'
-          }
-        ]
-      });
-
-      sections.push({
-        key: 'content',
-        title: '作品汇总',
-        meta: `最近同步：${formatTime(platformData.lastUpdate)}`,
-        metrics: [
-          { label: '观看数', value: formatNumber(platformData?.playCount || 0), variant: 'large' },
-          { label: '收藏量', value: formatNumber(platformData?.favoriteCount || 0) },
-          { label: '评论量', value: formatNumber(platformData?.commentCount || 0) },
-          { label: '分享量', value: formatNumber(platformData?.shareCount || 0) },
-          { label: '弹幕量', value: formatNumber(platformData?.danmakuCount || 0) },
-          { label: '投币量', value: formatNumber(platformData?.coinCount || 0) }
-        ]
-      });
-    }
-
-    return {
-      id: 'bilibili',
-      title: '哔哩哔哩',
-      kicker: 'Platform 01',
-      accountName: platformData?.displayName || '等待识别账号',
-      hasData,
-      homeUrl: 'https://member.bilibili.com/platform/home',
-      compactMetrics: [
-        { label: '粉丝', value: formatNumber(platformData?.fans || 0) },
-        { label: '观看数', value: formatNumber(platformData?.playCount || 0) }
-      ],
-      sections
-    };
+    return createSingleSyncCardModel(this, platformData);
   }
 };

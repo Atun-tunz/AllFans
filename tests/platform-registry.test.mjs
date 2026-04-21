@@ -1,7 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
 
 import {
   getPlatformById,
@@ -176,27 +174,17 @@ test('Kuaishou sync declares separate account and content entrypoints', () => {
   assert.notEqual(platform.useOnlyDefaultSyncEntrypoint, true);
 });
 
-test('creator account popup models use the shared account overview helper', () => {
-  const sourceByFile = {
-    douyin: fs.readFileSync(
-      path.join(process.cwd(), 'extension', 'platforms', 'douyin-platform.js'),
-      'utf8'
-    ),
-    xiaohongshu: fs.readFileSync(
-      path.join(process.cwd(), 'extension', 'platforms', 'xiaohongshu-card-platform.js'),
-      'utf8'
-    ),
-    kuaishou: fs.readFileSync(
-      path.join(process.cwd(), 'extension', 'platforms', 'kuaishou-platform.js'),
-      'utf8'
-    )
-  };
+test('creator popup models declare split account and content card sections', () => {
+  for (const platformId of ['douyin', 'xiaohongshu', 'kuaishou']) {
+    const platform = getPlatformById(platformId);
 
-  for (const [platformId, source] of Object.entries(sourceByFile)) {
-    assert.match(
-      source,
-      /createAccountOverviewSection/,
-      `${platformId} should build account overview with the shared helper`
+    assert.equal(platform.card.mode, 'split');
+    assert.deepEqual(
+      platform.card.sections.map(section => [section.key, section.syncField]),
+      [
+        ['account', 'accountStatsLastUpdate'],
+        ['content', 'contentStatsLastUpdate']
+      ]
     );
   }
 });
@@ -262,7 +250,7 @@ test('Kuaishou popup card renders account overview before content metrics', () =
   assert.equal(model.compactMetrics[0].value, '3');
 });
 
-test('Kuaishou popup card does not show zero fans when account stats are missing', () => {
+test('Kuaishou popup card hides account metrics when account stats are missing', () => {
   const platform = getPlatformById('kuaishou');
   const model = platform.createPopupCardModel({
     displayName: '阿屯的屯',
@@ -277,12 +265,9 @@ test('Kuaishou popup card does not show zero fans when account stats are missing
   });
 
   assert.equal(model.hasData, true);
-  assert.equal(model.compactMetrics[0].label, '粉丝');
-  assert.equal(model.compactMetrics[0].value, '未同步');
-  assert.equal(model.sections[0].key, 'account');
-  assert.equal(model.sections[0].metrics[0].label, '粉丝');
-  assert.equal(model.sections[0].metrics[0].value, '未同步');
-  assert.equal(model.sections[1].key, 'content');
+  assert.equal(model.compactMetrics.some(metric => metric.label === '粉丝'), false);
+  assert.equal(model.sections.some(section => section.key === 'account'), false);
+  assert.equal(model.sections[0].key, 'content');
 });
 
 test('Xiaohongshu matches both home and note-manager pages', () => {

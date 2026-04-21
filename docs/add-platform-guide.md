@@ -108,6 +108,7 @@ AllFans 的平台能力采用注册式架构。新增平台时，应优先新增
 - `contentScripts`
 - `syncEntrypoints`
 - `defaultSyncEntrypointId`
+- `card`
 - `createEmptyState()`
 - `getSummaryContributions(state)`
 - `matchesActiveTab(url)`
@@ -116,7 +117,7 @@ AllFans 的平台能力采用注册式架构。新增平台时，应优先新增
 最小结构示例：
 
 ```js
-import { formatNumber, formatTime } from '../popup/formatters.js';
+import { createSplitSyncCardModel } from './platform-card-model.js';
 
 export const examplePlatform = {
   id: 'example',
@@ -141,10 +142,39 @@ export const examplePlatform = {
     }
   ],
   defaultSyncEntrypointId: 'home',
+  card: {
+    mode: 'split',
+    homeUrl: 'https://creator.example.com/home',
+    accountNameFallback: '等待识别账号',
+    compactMetricKeys: ['fans', 'playCount'],
+    sections: [
+      {
+        key: 'account',
+        title: '账号概览',
+        syncField: 'accountStatsLastUpdate',
+        metrics: [
+          { key: 'fans', label: '粉丝', variant: 'accent' },
+          { key: 'accountLikeCount', label: '累计获赞', variant: 'hot' }
+        ]
+      },
+      {
+        key: 'content',
+        title: '作品汇总',
+        syncField: 'contentStatsLastUpdate',
+        meta: 'contentSummary',
+        metrics: [
+          { key: 'playCount', label: '播放量', variant: 'large' },
+          { key: 'likeCount', label: '点赞量' },
+          { key: 'commentCount', label: '评论量' }
+        ]
+      }
+    ]
+  },
   createEmptyState() {
     return {
       displayName: '',
       fans: 0,
+      accountLikeCount: 0,
       playCount: 0,
       likeCount: 0,
       commentCount: 0,
@@ -176,32 +206,16 @@ export const examplePlatform = {
     return null;
   },
   createPopupCardModel(platformData) {
-    return {
-      id: 'example',
-      title: '示例平台',
-      kicker: 'Platform 04',
-      accountName: platformData?.displayName || '等待识别账号',
-      hasData: Boolean(platformData?.lastUpdate),
-      homeUrl: 'https://creator.example.com/home',
-      compactMetrics: [
-        { label: '粉丝', value: formatNumber(platformData?.fans || 0) },
-        { label: '播放', value: formatNumber(platformData?.playCount || 0) }
-      ],
-      sections: [
-        {
-          key: 'overview',
-          title: '账号概览',
-          meta: `最近同步：${formatTime(platformData?.lastUpdate)}`,
-          metrics: [
-            { label: '粉丝', value: formatNumber(platformData?.fans || 0), variant: 'accent' },
-            { label: '点赞', value: formatNumber(platformData?.likeCount || 0) }
-          ]
-        }
-      ]
-    };
+    return createSplitSyncCardModel(this, platformData);
   }
 };
 ```
+
+如果平台像 B 站一样一次同步拿完整数据，`card.mode` 使用 `single`，所有 section 的 `syncField` 使用 `lastUpdate`，并在 `createPopupCardModel()` 中调用 `createSingleSyncCardModel(this, platformData)`。
+
+如果平台像抖音、小红书、快手一样账号和作品分开同步，`card.mode` 使用 `split`。账号 section 使用 `accountStatsLastUpdate`，作品 section 使用 `contentStatsLastUpdate`。未同步的 section 和 compact 指标不会展示；同步后真实返回 `0` 会正常展示 `0`。
+
+更多配置说明见 [平台卡片模型](platform-card-model.md)。
 
 ### 2. 新增 metrics 解析模块
 
@@ -393,4 +407,3 @@ export const platformRegistry = [
 - 内容列表如果需要滚动加载，要明确统计口径：全部作品、当前页作品、最近 N 条作品。
 - 扩展商店审核会关注新增域名权限，manifest 权限要保持最小化。
 - 不要收集或持久化 cookie、token、手机号、私信、收入明细等非必要敏感数据。
-

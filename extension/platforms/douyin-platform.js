@@ -1,13 +1,9 @@
-import { formatNumber } from '../popup/formatters.js';
-import {
-  buildCreatorContentMeta,
-  createAccountOverviewSection
-} from './creator-card-model.js';
+import { createSplitSyncCardModel } from './platform-card-model.js';
 
 export const douyinPlatform = {
   id: 'douyin',
-  displayName: '抖音',
-  title: '抖音',
+  displayName: '\u6296\u97f3',
+  title: '\u6296\u97f3',
   order: 2,
   hostPermissions: ['https://www.douyin.com/*', 'https://creator.douyin.com/*'],
   contentScripts: [
@@ -20,21 +16,50 @@ export const douyinPlatform = {
   syncEntrypoints: [
     {
       id: 'home',
-      label: '打开抖音创作者中心首页',
-      actionLabel: '同步账号数据',
+      label: '\u6253\u5f00\u6296\u97f3\u521b\u4f5c\u8005\u4e2d\u5fc3\u9996\u9875',
+      actionLabel: '\u540c\u6b65\u8d26\u53f7\u6570\u636e',
       url: 'https://creator.douyin.com/creator-micro/home',
       urlPrefix: 'https://creator.douyin.com/creator-micro/home'
     },
     {
       id: 'content',
-      label: '打开抖音作品管理页面',
-      actionLabel: '同步作品数据',
+      label: '\u6253\u5f00\u6296\u97f3\u4f5c\u54c1\u7ba1\u7406\u9875\u9762',
+      actionLabel: '\u540c\u6b65\u4f5c\u54c1\u6570\u636e',
       url: 'https://creator.douyin.com/creator-micro/content/manage',
       urlPrefix: 'https://creator.douyin.com/creator-micro/content/manage'
     }
   ],
   defaultSyncEntrypointId: 'content',
   useOnlyDefaultSyncEntrypoint: true,
+  card: {
+    mode: 'split',
+    homeUrl: 'https://creator.douyin.com/creator-micro/home',
+    accountNameFallback: '\u7b49\u5f85\u8bc6\u522b\u8d26\u53f7',
+    compactMetricKeys: ['fans', 'playCount'],
+    sections: [
+      {
+        key: 'account',
+        title: '\u8d26\u53f7\u6982\u89c8',
+        syncField: 'accountStatsLastUpdate',
+        metrics: [
+          { key: 'fans', label: '\u7c89\u4e1d', variant: 'accent' },
+          { key: 'accountLikeCount', label: '\u7d2f\u8ba1\u83b7\u8d5e', variant: 'hot' }
+        ]
+      },
+      {
+        key: 'content',
+        title: '\u4f5c\u54c1\u6c47\u603b',
+        syncField: 'contentStatsLastUpdate',
+        meta: 'contentSummary',
+        metrics: [
+          { key: 'playCount', label: '\u89c2\u770b\u6570', variant: 'large' },
+          { key: 'favoriteCount', label: '\u6536\u85cf\u91cf' },
+          { key: 'commentCount', label: '\u8bc4\u8bba\u91cf' },
+          { key: 'shareCount', label: '\u5206\u4eab\u91cf' }
+        ]
+      }
+    ]
+  },
   createEmptyState() {
     return {
       displayName: '',
@@ -68,7 +93,7 @@ export const douyinPlatform = {
       return {
         platformId: 'douyin',
         entrypointId: 'content',
-        platformName: '抖音'
+        platformName: '\u6296\u97f3'
       };
     }
 
@@ -76,49 +101,13 @@ export const douyinPlatform = {
       return {
         platformId: 'douyin',
         entrypointId: 'home',
-        platformName: '抖音'
+        platformName: '\u6296\u97f3'
       };
     }
 
     return null;
   },
   createPopupCardModel(platformData) {
-    const hasAccount = Boolean(platformData?.accountStatsLastUpdate);
-    const hasContent = Boolean(platformData?.contentStatsLastUpdate);
-    const hasData = hasAccount || hasContent;
-    const sections = [];
-    const accountSection = createAccountOverviewSection(platformData);
-
-    if (accountSection) {
-      sections.push(accountSection);
-    }
-
-    if (hasContent) {
-      sections.push({
-        key: 'content',
-        title: '作品汇总',
-        meta: buildCreatorContentMeta(platformData),
-        metrics: [
-          { label: '观看数', value: formatNumber(platformData?.playCount || 0), variant: 'large' },
-          { label: '收藏量', value: formatNumber(platformData?.favoriteCount || 0) },
-          { label: '评论量', value: formatNumber(platformData?.commentCount || 0) },
-          { label: '分享量', value: formatNumber(platformData?.shareCount || 0) }
-        ]
-      });
-    }
-
-    return {
-      id: 'douyin',
-      title: '抖音',
-      kicker: 'Platform 02',
-      accountName: platformData?.displayName || '等待识别账号',
-      hasData,
-      homeUrl: 'https://creator.douyin.com/creator-micro/home',
-      compactMetrics: [
-        { label: '粉丝', value: formatNumber(platformData?.fans || 0) },
-        { label: '观看数', value: formatNumber(platformData?.playCount || 0) }
-      ],
-      sections
-    };
+    return createSplitSyncCardModel(this, platformData);
   }
 };

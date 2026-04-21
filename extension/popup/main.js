@@ -2,7 +2,7 @@ import { BrowserApi } from '../runtime/browser-api.js';
 import { MESSAGE_TYPES } from '../runtime/messages.js';
 import { platformRegistry } from '../runtime/platform-registry.js';
 import { createFeedbackController } from './feedback.js';
-import { formatNumber, formatTime } from './formatters.js';
+import { formatNumber } from './formatters.js';
 import { animateValue, parseDisplayNumber, shouldAnimate } from './number-animation.js';
 import ToastManager from './toast.js';
 

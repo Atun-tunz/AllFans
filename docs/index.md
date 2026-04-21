@@ -6,12 +6,14 @@ AllFans 是一个面向创作者后台的浏览器扩展，用于汇总多个平
 
 - [隐私政策](privacy-policy.md)
 - [Edge 发布材料总表](edge-publish-kit.md)
+- [平台卡片模型](platform-card-model.md)
 
 ## 长期保留备忘
 
 - [盈利方向备忘 - 不要删除](monetization-notes.md)
 - [设计文档](design.md)
 - [新平台接入指南](add-platform-guide.md)
+- [平台卡片模型](platform-card-model.md)
 - [本地桥接说明](local-bridge.md)
 - [排查指南](debug-guide.md)
 
@@ -20,6 +22,7 @@ AllFans 是一个面向创作者后台的浏览器扩展，用于汇总多个平
 - Bilibili
 - 抖音
 - 小红书
+- 快手
 
 ## 发布相关
 

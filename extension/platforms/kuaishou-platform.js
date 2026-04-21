@@ -1,9 +1,4 @@
-import { formatNumber } from '../popup/formatters.js';
-import {
-  buildCreatorContentMeta,
-  createAccountOverviewSection,
-  getAccountMetricValue
-} from './creator-card-model.js';
+import { createSplitSyncCardModel } from './platform-card-model.js';
 
 export const kuaishouPlatform = {
   id: 'kuaishou',
@@ -45,6 +40,34 @@ export const kuaishouPlatform = {
     }
   ],
   defaultSyncEntrypointId: 'content',
+  card: {
+    mode: 'split',
+    homeUrl: 'https://cp.kuaishou.com/',
+    accountNameFallback: '\u7b49\u5f85\u8bc6\u522b\u8d26\u53f7',
+    compactMetricKeys: ['fans', 'playCount'],
+    sections: [
+      {
+        key: 'account',
+        title: '\u8d26\u53f7\u6982\u89c8',
+        syncField: 'accountStatsLastUpdate',
+        metrics: [
+          { key: 'fans', label: '\u7c89\u4e1d', variant: 'accent' },
+          { key: 'accountLikeCount', label: '\u7d2f\u8ba1\u83b7\u8d5e', variant: 'hot' }
+        ]
+      },
+      {
+        key: 'content',
+        title: '\u4f5c\u54c1\u6c47\u603b',
+        syncField: 'contentStatsLastUpdate',
+        meta: 'contentSummary',
+        metrics: [
+          { key: 'playCount', label: '\u64ad\u653e\u91cf', variant: 'large' },
+          { key: 'likeCount', label: '\u70b9\u8d5e\u91cf' },
+          { key: 'commentCount', label: '\u8bc4\u8bba\u91cf' }
+        ]
+      }
+    ]
+  },
   createEmptyState() {
     return {
       displayName: '',
@@ -89,45 +112,6 @@ export const kuaishouPlatform = {
     return null;
   },
   createPopupCardModel(platformData) {
-    const hasAccount = Boolean(platformData?.accountStatsLastUpdate);
-    const hasContent = Boolean(platformData?.contentStatsLastUpdate || platformData?.lastUpdate);
-    const hasData = hasAccount || hasContent;
-    const accountFanValue = getAccountMetricValue(platformData, 'fans');
-    const sections = [];
-    const accountSection = createAccountOverviewSection(platformData, { includePending: hasContent });
-
-    if (accountSection) {
-      sections.push(accountSection);
-    }
-
-    if (hasContent) {
-      sections.push({
-        key: 'content',
-        title: '\u4f5c\u54c1\u6c47\u603b',
-        meta: buildCreatorContentMeta({
-          ...platformData,
-          contentStatsLastUpdate: platformData?.contentStatsLastUpdate || platformData?.lastUpdate
-        }),
-        metrics: [
-          { label: '\u64ad\u653e\u91cf', value: formatNumber(platformData?.playCount || 0), variant: 'large' },
-          { label: '\u70b9\u8d5e\u91cf', value: formatNumber(platformData?.likeCount || 0) },
-          { label: '\u8bc4\u8bba\u91cf', value: formatNumber(platformData?.commentCount || 0) }
-        ]
-      });
-    }
-
-    return {
-      id: 'kuaishou',
-      title: '\u5feb\u624b',
-      kicker: 'Platform 04',
-      accountName: platformData?.displayName || '\u7b49\u5f85\u8bc6\u522b\u8d26\u53f7',
-      hasData,
-      homeUrl: 'https://cp.kuaishou.com/',
-      compactMetrics: [
-        { label: '\u7c89\u4e1d', value: accountFanValue },
-        { label: '\u64ad\u653e\u91cf', value: formatNumber(platformData?.playCount || 0) }
-      ],
-      sections
-    };
+    return createSplitSyncCardModel(this, platformData);
   }
 };

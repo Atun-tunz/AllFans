@@ -11,4 +11,5 @@ import './popup-button-style.test.mjs';
 import './popup-footer-actions.test.mjs';
 import './popup-layout.test.mjs';
 import './popup-number-animation.test.mjs';
+import './platform-card-model.test.mjs';
 import './platform-registry.test.mjs';

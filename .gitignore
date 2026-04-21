@@ -15,6 +15,7 @@ docs/*
 !docs/README.md
 !docs/index.md
 !docs/add-platform-guide.md
+!docs/platform-card-model.md
 !docs/superpowers/
 
 .superpowers/
