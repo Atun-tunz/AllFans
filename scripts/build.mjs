@@ -9,6 +9,24 @@ const DIST_ROOT = path.join(ROOT, 'dist');
 const EXTENSION_ROOT = path.join(ROOT, 'extension');
 const TARGETS = ['chrome', 'edge', 'firefox', 'safari'];
 
+async function getSourceManifestVersion() {
+  try {
+    const manifestPath = path.join(EXTENSION_ROOT, 'manifest.json');
+    let content = await fs.readFile(manifestPath, 'utf-8');
+
+    // Remove BOM if present
+    if (content.charCodeAt(0) === 0xFEFF) {
+      content = content.slice(1);
+    }
+
+    const manifest = JSON.parse(content);
+    return manifest.version || '1.0.0';
+  } catch (error) {
+    console.warn('Failed to read source manifest version, using default:', error.message);
+    return '1.0.0';
+  }
+}
+
 async function ensureCleanDir(dirPath) {
   await fs.rm(dirPath, { recursive: true, force: true });
   await fs.mkdir(dirPath, { recursive: true });
@@ -19,8 +37,8 @@ async function copyFile(sourcePath, targetPath) {
   await fs.copyFile(sourcePath, targetPath);
 }
 
-async function writeManifest(target) {
-  const manifest = buildManifestForTarget(target);
+async function writeManifest(target, version) {
+  const manifest = buildManifestForTarget(target, version);
   const outputPath = path.join(DIST_ROOT, target, 'manifest.json');
   await fs.writeFile(outputPath, JSON.stringify(manifest, null, 2));
 }
@@ -37,14 +55,17 @@ async function copyStaticAssets(target) {
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-metrics.js'), path.join(outputRoot, 'content', 'douyin-metrics.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-metrics.js'), path.join(outputRoot, 'content', 'xiaohongshu-metrics.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-bridge.js'), path.join(outputRoot, 'content', 'xiaohongshu-bridge.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-metrics.js'), path.join(outputRoot, 'content', 'kuaishou-metrics.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-bridge.js'), path.join(outputRoot, 'content', 'kuaishou-bridge.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'bilibili-sync.js'), path.join(outputRoot, 'content', 'bilibili-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-sync.js'), path.join(outputRoot, 'content', 'douyin-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-sync.js'), path.join(outputRoot, 'content', 'xiaohongshu-sync.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-sync.js'), path.join(outputRoot, 'content', 'kuaishou-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon16.png'), path.join(outputRoot, 'icons', 'icon16.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon48.png'), path.join(outputRoot, 'icons', 'icon48.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon128.png'), path.join(outputRoot, 'icons', 'icon128.png'));
 
-  const platformIcons = ['bilibili-icon.svg', 'douyin-icon.svg', 'xiaohongshu-icon.svg'];
+  const platformIcons = ['bilibili-icon.svg', 'douyin-icon.svg', 'xiaohongshu-icon.svg', 'kuaishou-icon.svg'];
   for (const icon of platformIcons) {
     await copyFile(
       path.join(EXTENSION_ROOT, 'icons', 'platforms', icon),
@@ -53,7 +74,7 @@ async function copyStaticAssets(target) {
   }
 }
 
-async function buildTarget(target) {
+async function buildTarget(target, version) {
   const outputRoot = path.join(DIST_ROOT, target);
   await ensureCleanDir(outputRoot);
 
@@ -73,10 +94,13 @@ async function buildTarget(target) {
   });
 
   await copyStaticAssets(target);
-  await writeManifest(target);
+  await writeManifest(target, version);
 }
 
+const version = await getSourceManifestVersion();
+console.log(`Building AllFans extension version ${version}...`);
+
 for (const target of TARGETS) {
-  await buildTarget(target);
+  await buildTarget(target, version);
   console.log(`Built ${target} extension output.`);
 }

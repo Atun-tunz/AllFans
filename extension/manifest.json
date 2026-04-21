@@ -1,7 +1,7 @@
-﻿{
+{
   "manifest_version": 3,
   "name": "AllFans",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "帮助创作者汇总查看多平台后台数据，并推送最新快照到本地程序。",
   "permissions": [
     "storage",
@@ -23,7 +23,8 @@
     "https://space.bilibili.com/*",
     "https://www.douyin.com/*",
     "https://creator.douyin.com/*",
-    "https://creator.xiaohongshu.com/*"
+    "https://creator.xiaohongshu.com/*",
+    "https://cp.kuaishou.com/*"
   ],
   "background": {
     "service_worker": "background/main.js",
@@ -44,12 +45,21 @@
       "matches": ["https://creator.xiaohongshu.com/*"],
       "js": ["content/xiaohongshu-metrics.js", "content/xiaohongshu-sync.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://cp.kuaishou.com/*"],
+      "js": ["content/kuaishou-metrics.js", "content/kuaishou-sync.js"],
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": ["content/xiaohongshu-bridge.js"],
       "matches": ["https://creator.xiaohongshu.com/*"]
+    },
+    {
+      "resources": ["content/kuaishou-bridge.js"],
+      "matches": ["https://cp.kuaishou.com/*"]
     }
   ],
   "action": {

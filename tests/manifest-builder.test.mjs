@@ -21,8 +21,20 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
     {
       resources: ['content/xiaohongshu-bridge.js'],
       matches: ['https://creator.xiaohongshu.com/*']
+    },
+    {
+      resources: ['content/kuaishou-bridge.js'],
+      matches: ['https://cp.kuaishou.com/*']
     }
   ]);
+  assert.ok(
+    manifest.content_scripts.some(
+      entry =>
+        entry.matches?.includes('https://cp.kuaishou.com/*') &&
+        entry.js?.includes('content/kuaishou-sync.js') &&
+        entry.run_at === 'document_start'
+    )
+  );
 });
 
 test('firefox manifest omits chromium-only external messaging declaration', () => {

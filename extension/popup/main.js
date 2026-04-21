@@ -14,6 +14,7 @@ const expandedPlatforms = new Set();
 const transientSyncState = new Map();
 let syncStateTimer = null;
 let latestData = null;
+let storageRefreshPromise = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   toast = new ToastManager();
@@ -27,6 +28,34 @@ function bindActions() {
   document.getElementById('clearCacheBtn')?.addEventListener('click', clearCachedData);
   document.getElementById('openOptionsBtn')?.addEventListener('click', openOptionsPage);
   document.addEventListener('keydown', handleGlobalKeydown);
+  bindStorageRefresh();
+}
+
+function hasRelevantStorageChange(changes) {
+  return ['platforms', 'summary', 'settings', 'integrations'].some(key =>
+    Object.prototype.hasOwnProperty.call(changes, key)
+  );
+}
+
+function bindStorageRefresh() {
+  const onChanged = BrowserApi.raw.storage?.onChanged;
+  if (!onChanged?.addListener) {
+    return;
+  }
+
+  onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local' || !hasRelevantStorageChange(changes)) {
+      return;
+    }
+
+    if (storageRefreshPromise) {
+      return;
+    }
+
+    storageRefreshPromise = loadData({ showLoading: false }).finally(() => {
+      storageRefreshPromise = null;
+    });
+  });
 }
 
 function setSyncAllButtonState(isRunning) {
@@ -147,6 +176,39 @@ function mapSyncErrorToBadge(errorMessage) {
   return { label: '同步失败', tone: 'danger' };
 }
 
+function markSyncAllPlatformsRunning(data) {
+  for (const platform of getEnabledPlatforms(data)) {
+    if (!data.settings.syncEnabledPlatformIds.includes(platform.id)) {
+      continue;
+    }
+
+    setTransientSyncState(platform.id, {
+      label: '同步中',
+      tone: 'warning',
+      disabled: true,
+      kind: 'running'
+    });
+  }
+
+  renderPlatformList(data, getEnabledPlatforms(data));
+}
+
+function applySyncAllResultBadges(results) {
+  for (const result of results) {
+    if (result.success) {
+      setTransientSyncState(result.platformId, null);
+      continue;
+    }
+
+    const badge = mapSyncErrorToBadge(result.error);
+    setTransientSyncState(result.platformId, {
+      ...badge,
+      disabled: false,
+      expiresAt: Date.now() + SYNC_STATUS_KEEP_MS
+    });
+  }
+}
+
 function getPlatformStatusBadge(platform, data) {
   const syncEnabled = data.settings.syncEnabledPlatformIds.includes(platform.id);
   if (!syncEnabled) {
@@ -164,10 +226,12 @@ function getPlatformStatusBadge(platform, data) {
   }
 
   const platformData = data.platforms?.[platform.id] || {};
-  const hasAccountSync = platform.syncEntrypoints.some(entrypoint => entrypoint.id === 'home');
-  const hasContentSync = platform.syncEntrypoints.some(
-    entrypoint => entrypoint.id === 'content' || entrypoint.id === 'notes'
-  );
+  const hasAccountSync =
+    platform.expectedSyncScopes?.includes('account') ||
+    platform.syncEntrypoints.some(entrypoint => entrypoint.id === 'home');
+  const hasContentSync =
+    platform.expectedSyncScopes?.includes('content') ||
+    platform.syncEntrypoints.some(entrypoint => entrypoint.id === 'content' || entrypoint.id === 'notes');
   const accountRecent = isRecentUpdate(platformData.accountStatsLastUpdate);
   const contentRecent = isRecentUpdate(platformData.contentStatsLastUpdate);
   const genericRecent = isRecentUpdate(platformData.lastUpdate);
@@ -197,8 +261,10 @@ function getPlatformStatusBadge(platform, data) {
   };
 }
 
-async function loadData() {
-  showSkeleton();
+async function loadData({ showLoading = true } = {}) {
+  if (showLoading) {
+    showSkeleton();
+  }
 
   try {
     const response = await BrowserApi.runtime.sendMessage({ type: MESSAGE_TYPES.GET_ALL_DATA });
@@ -207,10 +273,14 @@ async function loadData() {
     }
 
     latestData = response.data;
-    hideSkeleton();
+    if (showLoading) {
+      hideSkeleton();
+    }
     renderData(response.data);
   } catch (error) {
-    hideSkeleton();
+    if (showLoading) {
+      hideSkeleton();
+    }
     console.error('AllFans: failed to load popup data', error);
     toast.show('加载数据失败，请稍后重试。', 'error');
   }
@@ -218,6 +288,9 @@ async function loadData() {
 
 async function syncAllPlatforms() {
   setSyncAllButtonState(true);
+  if (latestData) {
+    markSyncAllPlatformsRunning(latestData);
+  }
 
   try {
     const response = await BrowserApi.runtime.sendMessage({
@@ -229,11 +302,7 @@ async function syncAllPlatforms() {
       throw new Error(response?.error || '同步失败');
     }
 
-    for (const result of response.data.results || []) {
-      if (result.success) {
-        setTransientSyncState(result.platformId, null);
-      }
-    }
+    applySyncAllResultBadges(response.data.results || []);
 
     await loadData();
 
@@ -250,6 +319,21 @@ async function syncAllPlatforms() {
     toast.show(message, failedCount === 0 ? 'success' : 'error');
   } catch (error) {
     console.error('AllFans: failed to sync all platforms', error);
+    if (latestData) {
+      const badge = mapSyncErrorToBadge(error?.message);
+      for (const platform of getEnabledPlatforms(latestData)) {
+        if (!latestData.settings.syncEnabledPlatformIds.includes(platform.id)) {
+          continue;
+        }
+
+        setTransientSyncState(platform.id, {
+          ...badge,
+          disabled: false,
+          expiresAt: Date.now() + SYNC_STATUS_KEEP_MS
+        });
+      }
+      renderPlatformList(latestData, getEnabledPlatforms(latestData));
+    }
     feedback.show(String(error?.message || '同步失败，请稍后重试。'), 'error');
     toast.show(String(error?.message || '同步失败，请稍后重试。'), 'error');
   } finally {

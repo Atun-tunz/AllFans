@@ -10,6 +10,13 @@ const OPEN_SYNC_OPTIONS = {
   messageRetryDelayMs: 400
 };
 
+function resolveOpenSyncOptions(platform) {
+  return {
+    ...OPEN_SYNC_OPTIONS,
+    ...(platform?.syncOptions || {})
+  };
+}
+
 BrowserApi.runtime.onInstalled.addListener(async details => {
   console.log('AllFans: onInstalled', details);
 
@@ -235,6 +242,7 @@ async function syncPlatformInTab({ platformId, entrypointId, tabId, reason, skip
     platform.syncEntrypoints.find(candidate => candidate.id === entrypointId) ||
     platform.syncEntrypoints.find(candidate => candidate.id === platform.defaultSyncEntrypointId) ||
     platform.syncEntrypoints[0];
+  const openSyncOptions = resolveOpenSyncOptions(platform);
 
   const response = await sendMessageWithRetry(
     tabId,
@@ -244,7 +252,7 @@ async function syncPlatformInTab({ platformId, entrypointId, tabId, reason, skip
       entrypointId: entrypoint?.id || null,
       reason
     },
-    OPEN_SYNC_OPTIONS
+    openSyncOptions
   );
 
   if (!response?.success) {
@@ -271,7 +279,7 @@ async function syncPlatformInTab({ platformId, entrypointId, tabId, reason, skip
     platformId,
     entrypointId: entrypoint?.id || null,
     scope: response.scope || null,
-    status: 'success',
+    status: isPlatformScopeComplete(platform, response.scope) ? 'success' : 'partial',
     data: response.data,
     pushResult
   };
@@ -316,6 +324,16 @@ function aggregateSyncScope(results) {
   return null;
 }
 
+function isPlatformScopeComplete(platform, scope) {
+  const expectedScopes = platform.expectedSyncScopes || [];
+  if (expectedScopes.length === 0) {
+    return true;
+  }
+
+  const deliveredScopes = new Set(scope === 'both' ? ['account', 'content'] : scope ? [scope] : []);
+  return expectedScopes.every(expectedScope => deliveredScopes.has(expectedScope));
+}
+
 function shouldRetryEntrypointSync(entrypoint, error) {
   if (!entrypoint || entrypoint.id === 'home') {
     return false;
@@ -333,8 +351,9 @@ function shouldRetryEntrypointSync(entrypoint, error) {
 }
 
 async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipPush = false }) {
+  const openSyncOptions = resolveOpenSyncOptions(platform);
   const tab = await openOrActivateTargetTab(entrypoint.url, entrypoint.urlPrefix);
-  await waitForTabReady(tab.id, entrypoint.urlPrefix);
+  await waitForTabReady(tab.id, entrypoint.urlPrefix, openSyncOptions);
 
   const latestTab = await BrowserApi.tabs.get(tab.id);
   if (!latestTab.url?.startsWith(entrypoint.urlPrefix)) {
@@ -355,7 +374,7 @@ async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipP
     }
 
     await BrowserApi.tabs.reload(tab.id);
-    await waitForTabReady(tab.id, entrypoint.urlPrefix);
+    await waitForTabReady(tab.id, entrypoint.urlPrefix, openSyncOptions);
 
     return syncPlatformInTab({
       platformId: platform.id,
@@ -420,6 +439,7 @@ async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush 
       throw new Error(results[0]?.error || `${platform.displayName}同步失败`);
     }
 
+    const aggregateScope = aggregateSyncScope(successResults);
     const refreshedData = await StorageManager.getAllData();
     let pushResult = null;
     if (!skipPush) {
@@ -430,7 +450,7 @@ async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush 
             entrypointId: null,
             success: true,
             reason,
-            scope: aggregateSyncScope(successResults)
+            scope: aggregateScope
           }
         ],
         refreshedData
@@ -440,8 +460,8 @@ async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush 
     return {
       platformId,
       entrypointId: null,
-      scope: aggregateSyncScope(successResults),
-      status: successResults.length === results.length ? 'success' : 'partial',
+      scope: aggregateScope,
+      status: isPlatformScopeComplete(platform, aggregateScope) ? 'success' : 'partial',
       results,
       data: refreshedData.platforms[platformId],
       pushResult

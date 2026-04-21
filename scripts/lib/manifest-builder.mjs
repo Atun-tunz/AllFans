@@ -17,11 +17,15 @@ function buildContentScripts() {
   );
 }
 
-function createBaseManifest() {
+function buildWebAccessibleResources() {
+  return platformRegistry.flatMap(platform => platform.webAccessibleResources || []);
+}
+
+function createBaseManifest(version = '1.0.0') {
   return {
     manifest_version: 3,
     name: 'AllFans',
-    version: '2.0.0',
+    version: version,
     description: '帮助创作者汇总查看多平台后台数据，并推送最新快照到本地程序。',
     permissions: [...BASE_PERMISSIONS],
     host_permissions: uniq([
@@ -33,12 +37,7 @@ function createBaseManifest() {
       type: 'module'
     },
     content_scripts: buildContentScripts(),
-    web_accessible_resources: [
-      {
-        resources: ['content/xiaohongshu-bridge.js'],
-        matches: ['https://creator.xiaohongshu.com/*']
-      }
-    ],
+    web_accessible_resources: buildWebAccessibleResources(),
     action: {
       default_popup: 'popup/index.html',
       default_icon: {
@@ -59,8 +58,8 @@ function createBaseManifest() {
   };
 }
 
-export function buildManifestForTarget(target) {
-  const manifest = createBaseManifest();
+export function buildManifestForTarget(target, version = '1.0.0') {
+  const manifest = createBaseManifest(version);
 
   if (target === 'chrome' || target === 'edge') {
     manifest.externally_connectable = {

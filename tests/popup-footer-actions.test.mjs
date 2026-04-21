@@ -31,6 +31,44 @@ test('popup footer styles keep sync-all as the primary wide action', () => {
   assert.match(css, /\.clear-cache-button\s*\{[\s\S]*padding:\s*12px 14px;/);
 });
 
+test('popup sync-all immediately marks enabled sync platforms as running', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'popup', 'main.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /function markSyncAllPlatformsRunning\(data\)/);
+  assert.match(script, /data\.settings\.syncEnabledPlatformIds\.includes\(platform\.id\)/);
+  assert.match(script, /setTransientSyncState\(platform\.id,\s*\{[\s\S]*kind:\s*'running'/m);
+  assert.match(script, /markSyncAllPlatformsRunning\(latestData\);[\s\S]*MESSAGE_TYPES\.SYNC_ALL_ENABLED_PLATFORMS/m);
+});
+
+test('popup sync-all keeps failed platform badges visible after refresh', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'popup', 'main.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /function applySyncAllResultBadges\(results\)/);
+  assert.match(script, /const badge = mapSyncErrorToBadge\(result\.error\);/);
+  assert.match(script, /setTransientSyncState\(result\.platformId,\s*\{[\s\S]*expiresAt:\s*Date\.now\(\) \+ SYNC_STATUS_KEEP_MS/m);
+  assert.match(script, /applySyncAllResultBadges\(response\.data\.results \|\| \[\]\);[\s\S]*await loadData\(\);/m);
+});
+
+test('popup status uses expected sync scopes instead of entrypoint count alone', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'popup', 'main.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /platform\.expectedSyncScopes\?\.includes\('account'\)/);
+  assert.match(script, /platform\.expectedSyncScopes\?\.includes\('content'\)/);
+});
+
+test('popup refreshes visible data when extension storage changes', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'popup', 'main.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /function bindStorageRefresh\(\)/);
+  assert.match(script, /BrowserApi\.raw\.storage\?\.onChanged/);
+  assert.match(script, /hasRelevantStorageChange\(changes\)/);
+  assert.match(script, /loadData\(\{\s*showLoading:\s*false\s*\}\)/);
+});
+
 test('popup settings launch card does not render the old status summary copy', () => {
   const htmlPath = path.join(process.cwd(), 'extension', 'popup', 'index.html');
   const html = fs.readFileSync(htmlPath, 'utf8');

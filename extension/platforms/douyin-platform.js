@@ -1,20 +1,8 @@
-import { formatNumber, formatTime } from '../popup/formatters.js';
-
-function buildContentMeta(platformData) {
-  const parts = [`\u6700\u8fd1\u540c\u6b65\uff1a${formatTime(platformData.contentStatsLastUpdate)}`];
-  const worksCount = Number(platformData?.worksCount) || 0;
-  const totalWorksCount = Number(platformData?.totalWorksCount) || 0;
-
-  if (platformData?.contentStatsExact && totalWorksCount === 0) {
-    parts.push('\u4f5c\u54c1 0');
-  } else if (totalWorksCount > 0 && totalWorksCount !== worksCount) {
-    parts.push(`\u4f5c\u54c1 ${formatNumber(worksCount)} / ${formatNumber(totalWorksCount)}`);
-  } else {
-    parts.push(`\u4f5c\u54c1 ${formatNumber(worksCount)}`);
-  }
-
-  return parts.join(' | ');
-}
+import { formatNumber } from '../popup/formatters.js';
+import {
+  buildCreatorContentMeta,
+  createAccountOverviewSection
+} from './creator-card-model.js';
 
 export const douyinPlatform = {
   id: 'douyin',
@@ -99,28 +87,17 @@ export const douyinPlatform = {
     const hasContent = Boolean(platformData?.contentStatsLastUpdate);
     const hasData = hasAccount || hasContent;
     const sections = [];
+    const accountSection = createAccountOverviewSection(platformData);
 
-    if (hasAccount) {
-      sections.push({
-        key: 'account',
-        title: '账号概览',
-        meta: `最近同步：${formatTime(platformData.accountStatsLastUpdate)}`,
-        metrics: [
-          { label: '粉丝', value: formatNumber(platformData?.fans || 0), variant: 'accent' },
-          {
-            label: '累计获赞',
-            value: formatNumber(platformData?.accountLikeCount || 0),
-            variant: 'hot'
-          }
-        ]
-      });
+    if (accountSection) {
+      sections.push(accountSection);
     }
 
     if (hasContent) {
       sections.push({
         key: 'content',
         title: '作品汇总',
-        meta: `最近同步：${formatTime(platformData.contentStatsLastUpdate)}`,
+        meta: buildCreatorContentMeta(platformData),
         metrics: [
           { label: '观看数', value: formatNumber(platformData?.playCount || 0), variant: 'large' },
           { label: '收藏量', value: formatNumber(platformData?.favoriteCount || 0) },
@@ -128,11 +105,6 @@ export const douyinPlatform = {
           { label: '分享量', value: formatNumber(platformData?.shareCount || 0) }
         ]
       });
-    }
-
-    const contentSection = sections.find(section => section.key === 'content');
-    if (contentSection) {
-      contentSection.meta = buildContentMeta(platformData);
     }
 
     return {

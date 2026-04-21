@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="kuaishouGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF8C00;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="24" fill="url(#kuaishouGradient)"/>
+  <path d="M32 40h64v8H32zm0 20h64v8H32zm0 20h48v8H32z" fill="white" opacity="0.9"/>
+  <circle cx="88" cy="88" r="20" fill="white" opacity="0.9"/>
+  <path d="M82 82l12 6-12 6z" fill="#FF6B00"/>
+</svg>

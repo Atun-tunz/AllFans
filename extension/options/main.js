@@ -32,28 +32,13 @@ async function loadData() {
 }
 
 function renderData(data) {
-  document.getElementById('autoUpdateSetting').checked = Boolean(data.settings.autoUpdate);
-  document.getElementById('externalApiEnabledSetting').checked = Boolean(
-    data.settings.externalApiEnabled
-  );
-  document.getElementById('localBridgeEnabledSetting').checked = Boolean(
-    data.settings.localBridgeEnabled
-  );
-  document.getElementById('localBridgeEndpointSetting').value =
-    data.settings.localBridgeEndpoint || '';
-
   renderPlatformSettings(data);
   renderOverview(data);
-  renderBridgeStatus(data.integrations.localBridge);
 }
 
 function renderOverview(data) {
   const enabledCount = data.settings.enabledPlatformIds.length;
   document.getElementById('enabledPlatformCount').textContent = String(enabledCount);
-  document.getElementById('autoSyncState').textContent = data.settings.autoUpdate ? '开启' : '关闭';
-  document.getElementById('bridgeState').textContent = data.settings.localBridgeEnabled
-    ? '已启用'
-    : '未启用';
 }
 
 function renderPlatformSettings(data) {
@@ -113,10 +98,6 @@ async function saveSettings() {
     const response = await BrowserApi.runtime.sendMessage({
       type: MESSAGE_TYPES.UPDATE_SETTINGS,
       settings: {
-        autoUpdate: document.getElementById('autoUpdateSetting').checked,
-        externalApiEnabled: document.getElementById('externalApiEnabledSetting').checked,
-        localBridgeEnabled: document.getElementById('localBridgeEnabledSetting').checked,
-        localBridgeEndpoint: document.getElementById('localBridgeEndpointSetting').value.trim(),
         enabledPlatformIds,
         syncEnabledPlatformIds,
         summaryIncludedPlatformIds

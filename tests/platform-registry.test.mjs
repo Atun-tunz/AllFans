@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   getPlatformById,
@@ -9,11 +11,11 @@ import {
 test('platformRegistry exposes a stable ordered list of supported platforms', () => {
   assert.deepEqual(
     platformRegistry.map(platform => platform.id),
-    ['bilibili', 'douyin', 'xiaohongshu']
+    ['bilibili', 'douyin', 'xiaohongshu', 'kuaishou']
   );
   assert.deepEqual(
     platformRegistry.map(platform => platform.order),
-    [1, 2, 3]
+    [1, 2, 3, 4]
   );
 });
 
@@ -146,6 +148,141 @@ test('Douyin content script is injected at document_start to catch early work li
   const platform = getPlatformById('douyin');
 
   assert.equal(platform.contentScripts[0]?.runAt, 'document_start');
+});
+
+test('Kuaishou content script is injected at document_start to catch early photo list requests', () => {
+  const platform = getPlatformById('kuaishou');
+
+  assert.equal(platform.contentScripts[0]?.runAt, 'document_start');
+});
+
+test('Kuaishou sync declares separate account and content entrypoints', () => {
+  const platform = getPlatformById('kuaishou');
+
+  assert.deepEqual(platform.contentScripts[0]?.matches, ['https://cp.kuaishou.com/*']);
+  assert.deepEqual(
+    platform.syncEntrypoints.map(entrypoint => entrypoint.id),
+    ['home', 'content']
+  );
+  assert.equal(platform.syncEntrypoints[0].url, 'https://cp.kuaishou.com/');
+  assert.equal(
+    platform.matchesActiveTab('https://cp.kuaishou.com/')?.entrypointId,
+    'home'
+  );
+  assert.equal(
+    platform.matchesActiveTab('https://cp.kuaishou.com/article/manage/video')?.entrypointId,
+    'content'
+  );
+  assert.notEqual(platform.useOnlyDefaultSyncEntrypoint, true);
+});
+
+test('creator account popup models use the shared account overview helper', () => {
+  const sourceByFile = {
+    douyin: fs.readFileSync(
+      path.join(process.cwd(), 'extension', 'platforms', 'douyin-platform.js'),
+      'utf8'
+    ),
+    xiaohongshu: fs.readFileSync(
+      path.join(process.cwd(), 'extension', 'platforms', 'xiaohongshu-card-platform.js'),
+      'utf8'
+    ),
+    kuaishou: fs.readFileSync(
+      path.join(process.cwd(), 'extension', 'platforms', 'kuaishou-platform.js'),
+      'utf8'
+    )
+  };
+
+  for (const [platformId, source] of Object.entries(sourceByFile)) {
+    assert.match(
+      source,
+      /createAccountOverviewSection/,
+      `${platformId} should build account overview with the shared helper`
+    );
+  }
+});
+
+test('Kuaishou declares its page bridge resource in the platform definition', () => {
+  const platform = getPlatformById('kuaishou');
+
+  assert.deepEqual(platform.webAccessibleResources, [
+    {
+      resources: ['content/kuaishou-bridge.js'],
+      matches: ['https://cp.kuaishou.com/*']
+    }
+  ]);
+  assert.equal(platform.syncOptions?.tabLoadTimeoutMs, 60000);
+  assert.deepEqual(platform.expectedSyncScopes, ['account', 'content']);
+});
+
+test('Kuaishou empty state includes account fields', () => {
+  const platform = getPlatformById('kuaishou');
+  const state = platform.createEmptyState();
+
+  assert.equal(state.fans, 0);
+  assert.equal(state.accountLikeCount, 0);
+  assert.equal(state.accountStatsLastUpdate, null);
+  assert.equal(state.accountUpdateSource, null);
+});
+
+test('Kuaishou summary contributions include fans and prefer account likes', () => {
+  const platform = getPlatformById('kuaishou');
+  const contribution = platform.getSummaryContributions({
+    fans: 3,
+    accountLikeCount: 1,
+    likeCount: 300,
+    playCount: 8040
+  });
+
+  assert.equal(contribution.totalFans, 3);
+  assert.equal(contribution.totalPlayCount, 8040);
+  assert.equal(contribution.totalLikeCount, 1);
+});
+
+test('Kuaishou popup card renders account overview before content metrics', () => {
+  const platform = getPlatformById('kuaishou');
+  const model = platform.createPopupCardModel({
+    displayName: '阿屯的屯',
+    fans: 3,
+    accountLikeCount: 1,
+    playCount: 8040,
+    likeCount: 300,
+    commentCount: 130,
+    worksCount: 2,
+    accountStatsLastUpdate: '2026-04-21T00:00:00.000Z',
+    contentStatsLastUpdate: '2026-04-21T00:01:00.000Z',
+    contentStatsExact: true
+  });
+
+  assert.equal(model.hasData, true);
+  assert.equal(model.accountName, '阿屯的屯');
+  assert.equal(model.sections[0].key, 'account');
+  assert.equal(model.sections[0].metrics[0].value, '3');
+  assert.equal(model.sections[0].metrics[1].value, '1');
+  assert.equal(model.sections[1].key, 'content');
+  assert.equal(model.compactMetrics[0].value, '3');
+});
+
+test('Kuaishou popup card does not show zero fans when account stats are missing', () => {
+  const platform = getPlatformById('kuaishou');
+  const model = platform.createPopupCardModel({
+    displayName: '阿屯的屯',
+    fans: 0,
+    accountLikeCount: 0,
+    playCount: 8040,
+    likeCount: 300,
+    commentCount: 130,
+    worksCount: 2,
+    contentStatsLastUpdate: '2026-04-21T00:01:00.000Z',
+    contentStatsExact: true
+  });
+
+  assert.equal(model.hasData, true);
+  assert.equal(model.compactMetrics[0].label, '粉丝');
+  assert.equal(model.compactMetrics[0].value, '未同步');
+  assert.equal(model.sections[0].key, 'account');
+  assert.equal(model.sections[0].metrics[0].label, '粉丝');
+  assert.equal(model.sections[0].metrics[0].value, '未同步');
+  assert.equal(model.sections[1].key, 'content');
 });
 
 test('Xiaohongshu matches both home and note-manager pages', () => {
