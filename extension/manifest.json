@@ -24,7 +24,8 @@
     "https://www.douyin.com/*",
     "https://creator.douyin.com/*",
     "https://creator.xiaohongshu.com/*",
-    "https://cp.kuaishou.com/*"
+    "https://cp.kuaishou.com/*",
+    "https://channels.weixin.qq.com/*"
   ],
   "background": {
     "service_worker": "background/main.js",
@@ -50,6 +51,19 @@
       "matches": ["https://cp.kuaishou.com/*"],
       "js": ["content/kuaishou-metrics.js", "content/kuaishou-sync.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://channels.weixin.qq.com/*"],
+      "js": ["content/weixin-channels-bridge.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://channels.weixin.qq.com/*"],
+      "js": ["content/weixin-channels-metrics.js", "content/weixin-channels-sync.js"],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [
@@ -60,6 +74,10 @@
     {
       "resources": ["content/kuaishou-bridge.js"],
       "matches": ["https://cp.kuaishou.com/*"]
+    },
+    {
+      "resources": ["content/weixin-channels-bridge.js"],
+      "matches": ["https://channels.weixin.qq.com/*"]
     }
   ],
   "action": {

@@ -7,13 +7,27 @@ function uniq(values) {
   return [...new Set(values)];
 }
 
-function buildContentScripts() {
+function buildContentScripts(target) {
+  const supportsContentScriptWorld = target === 'chrome' || target === 'edge';
+
   return platformRegistry.flatMap(platform =>
-    platform.contentScripts.map(entry => ({
-      matches: entry.matches,
-      js: entry.js,
-      run_at: entry.runAt
-    }))
+    platform.contentScripts.map(entry => {
+      const manifestEntry = {
+        matches: entry.matches,
+        js: entry.js,
+        run_at: entry.runAt
+      };
+
+      if (entry.allFrames) {
+        manifestEntry.all_frames = true;
+      }
+
+      if (entry.world && supportsContentScriptWorld) {
+        manifestEntry.world = entry.world;
+      }
+
+      return manifestEntry;
+    })
   );
 }
 
@@ -21,7 +35,7 @@ function buildWebAccessibleResources() {
   return platformRegistry.flatMap(platform => platform.webAccessibleResources || []);
 }
 
-function createBaseManifest(version = '1.0.0') {
+function createBaseManifest(version = '1.0.0', target) {
   return {
     manifest_version: 3,
     name: 'AllFans',
@@ -36,7 +50,7 @@ function createBaseManifest(version = '1.0.0') {
       service_worker: 'background/background.js',
       type: 'module'
     },
-    content_scripts: buildContentScripts(),
+    content_scripts: buildContentScripts(target),
     web_accessible_resources: buildWebAccessibleResources(),
     action: {
       default_popup: 'popup/index.html',
@@ -59,9 +73,8 @@ function createBaseManifest(version = '1.0.0') {
 }
 
 export function buildManifestForTarget(target, version = '1.0.0') {
-  const manifest = createBaseManifest(version);
-
   if (target === 'chrome' || target === 'edge') {
+    const manifest = createBaseManifest(version, target);
     manifest.externally_connectable = {
       matches: [...LOCAL_BRIDGE_HOSTS]
     };
@@ -69,6 +82,7 @@ export function buildManifestForTarget(target, version = '1.0.0') {
   }
 
   if (target === 'firefox' || target === 'safari') {
+    const manifest = createBaseManifest(version, target);
     manifest.background = {
       scripts: ['background/background.js'],
       type: 'module'

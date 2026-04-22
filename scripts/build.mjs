@@ -57,10 +57,13 @@ async function copyStaticAssets(target) {
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-bridge.js'), path.join(outputRoot, 'content', 'xiaohongshu-bridge.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-metrics.js'), path.join(outputRoot, 'content', 'kuaishou-metrics.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-bridge.js'), path.join(outputRoot, 'content', 'kuaishou-bridge.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weixin-channels-metrics.js'), path.join(outputRoot, 'content', 'weixin-channels-metrics.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weixin-channels-bridge.js'), path.join(outputRoot, 'content', 'weixin-channels-bridge.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'bilibili-sync.js'), path.join(outputRoot, 'content', 'bilibili-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-sync.js'), path.join(outputRoot, 'content', 'douyin-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-sync.js'), path.join(outputRoot, 'content', 'xiaohongshu-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-sync.js'), path.join(outputRoot, 'content', 'kuaishou-sync.js'));
+  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weixin-channels-sync.js'), path.join(outputRoot, 'content', 'weixin-channels-sync.js'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon16.png'), path.join(outputRoot, 'icons', 'icon16.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon48.png'), path.join(outputRoot, 'icons', 'icon48.png'));
   await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon128.png'), path.join(outputRoot, 'icons', 'icon128.png'));

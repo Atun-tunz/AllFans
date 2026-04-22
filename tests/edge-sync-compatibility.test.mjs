@@ -193,6 +193,128 @@ test('kuaishou sync keeps account data when content refresh fails after account 
   assert.match(script, /catch \(error\) \{[\s\S]*if \(syncScope === 'none'\) \{[\s\S]*throw error;[\s\S]*keeping account data/m);
 });
 
+test('weixin channels sync prefers clicking real SPA route links before pushState fallback', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /async function waitForRouteLink\(route\)/);
+  assert.match(script, /await waitForRouteLink\(route\)/);
+  assert.match(script, /routeLink\.click\(\)/);
+  assert.match(script, /window\.history\.pushState/);
+});
+
+test('weixin channels sync can click visible content menu text when route links are unavailable', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /CONTENT_MENU_TEXT/);
+  assert.match(script, /function findTextRouteCandidate\(entrypointId\)/);
+  assert.match(script, /await waitForTextRouteCandidate\(entrypointId\)/);
+  assert.match(script, /textRouteCandidate\.click\(\)/);
+});
+
+test('weixin channels sync keeps unclassified post-list captures under the requested content kind', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /let currentScanEntrypointId = null/);
+  assert.match(script, /function getRequestedContentKindHint\(\)/);
+  assert.match(script, /getContentKindForRole\(currentScanEntrypointId\)/);
+  assert.match(script, /payload\.kind \|\| metrics\.getPostListKind\(payload\.url,\s*payload\.pageUrl\) \|\| getRequestedContentKindHint\(\)/);
+});
+
+test('weixin channels sync clears old post-list templates before each content entrypoint', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /BRIDGE_RESET_POST_LIST_TEMPLATES_REQUEST_TYPE/);
+  assert.match(script, /function resetPostListTemplatesInBridge\(\)/);
+  assert.match(script, /function shouldResetPostListTemplatesBeforeNavigation\(entrypointId\)/);
+  assert.match(script, /if \(shouldResetPostListTemplatesBeforeNavigation\(requestedEntrypointId\)\) \{[\s\S]*await resetPostListTemplatesInBridge\(\);[\s\S]*\}/m);
+  assert.match(script, /await navigateToRequestedEntrypoint\(requestedEntrypointId\)/);
+});
+
+test('weixin channels sync paginates post-list data until the requested content kind is complete', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /maxPages:\s*\d+/);
+  assert.match(script, /async function collectAllPostListData\(metrics,\s*kind\)/);
+  assert.match(script, /while \(pageCount < WAIT_OPTIONS\.maxPages\)/);
+  assert.match(script, /metrics\.isPostListKindScanComplete\(state,\s*kind\)/);
+  assert.match(script, /metrics\.buildNextPostListPageRequest\(/);
+  assert.match(script, /requestPostListFromBridge\(kind,\s*pageRequest\)/);
+});
+
+test('weixin channels sync collects video and image-text content in one default entrypoint run', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /function getContentKindsForRole\(role\)/);
+  assert.match(script, /function getRoleForContentKind\(kind\)/);
+  assert.match(script, /for \(const contentKindToCollect of contentKinds\)/);
+  assert.match(script, /currentScanEntrypointId = contentEntrypointId/);
+  assert.match(script, /await navigateToRequestedEntrypoint\(contentEntrypointId\)/);
+  assert.match(script, /collectContentInfo\(metrics,\s*contentKindToCollect,\s*timestamp\)/);
+});
+
+test('weixin channels sync relays post-list bridge requests through child frames', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /function postBridgeMessage\(message,\s*\{ includeChildFrames = false \} = \{\}\)/);
+  assert.match(script, /document\.querySelectorAll\('iframe'\)/);
+  assert.match(script, /frame\.contentWindow\.postMessage\(message,\s*'\*'\)/);
+  assert.match(
+    script,
+    /postBridgeMessage\(\s*\{[\s\S]*type: BRIDGE_POST_LIST_FETCH_REQUEST_TYPE[\s\S]*allowMissingTemplate: true[\s\S]*\},\s*\{ includeChildFrames: true \}/m
+  );
+});
+
+test('weixin channels bridge forwards child-frame captures to the top frame', () => {
+  const bridgePath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-bridge.js');
+  const bridge = fs.readFileSync(bridgePath, 'utf8');
+
+  assert.match(bridge, /function postBridgeMessage\(message\)/);
+  assert.match(bridge, /window\.top && window\.top !== window/);
+  assert.match(bridge, /window\.top\.postMessage\(payload,\s*'\*'\)/);
+  assert.match(bridge, /payload\?\.source !== SOURCE/);
+  assert.doesNotMatch(bridge, /event\.source !== window \|\| payload\?\.source !== SOURCE/);
+  assert.match(bridge, /payload\.allowMissingTemplate/);
+});
+
+test('weixin channels sync does not reuse passive account scans for manual content entrypoints', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-sync.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /let activeScanKey = null/);
+  assert.match(script, /const scanKey = `\$\{reason\}:\$\{entrypointId \|\| 'auto'\}`/);
+  assert.match(script, /if \(activeScanPromise && activeScanKey === scanKey\)/);
+  assert.match(script, /function hasRequestedEntrypointParam\(\)/);
+  assert.match(script, /if \(hasRequestedEntrypointParam\(\)\) \{[\s\S]*return;[\s\S]*\}/m);
+});
+
+test('weixin channels bridge can replay unclassified post-list templates for the requested kind', () => {
+  const bridgePath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-bridge.js');
+  const bridge = fs.readFileSync(bridgePath, 'utf8');
+
+  assert.match(bridge, /RESET_POST_LIST_TEMPLATES_REQUEST_TYPE/);
+  assert.match(bridge, /function resetPostListTemplates\(\)/);
+  assert.match(bridge, /unclassified:\s*null/);
+  assert.match(bridge, /latestPostListRequestTemplates\.unclassified = template/);
+  assert.match(bridge, /latestPostListRequestTemplates\[kind\] \|\| latestPostListRequestTemplates\.unclassified/);
+});
+
+test('weixin channels bridge applies pagination overrides when replaying post-list templates', () => {
+  const bridgePath = path.join(process.cwd(), 'extension', 'content', 'weixin-channels-bridge.js');
+  const bridge = fs.readFileSync(bridgePath, 'utf8');
+
+  assert.match(bridge, /function applyPostListPagination\(template,\s*pageRequest\)/);
+  assert.match(bridge, /pageRequest\.offset/);
+  assert.match(bridge, /pageRequest\.cursor/);
+  assert.match(bridge, /buildReplayInit\(paginatedTemplate\)/);
+});
+
 test('background marks single-entrypoint platforms partial when returned scope misses expected scopes', () => {
   const scriptPath = path.join(process.cwd(), 'extension', 'background', 'main.js');
   const script = fs.readFileSync(scriptPath, 'utf8');

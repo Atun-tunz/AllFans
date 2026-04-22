@@ -9,11 +9,11 @@ import {
 test('platformRegistry exposes a stable ordered list of supported platforms', () => {
   assert.deepEqual(
     platformRegistry.map(platform => platform.id),
-    ['bilibili', 'douyin', 'xiaohongshu', 'kuaishou']
+    ['bilibili', 'douyin', 'xiaohongshu', 'kuaishou', 'weixin_channels']
   );
   assert.deepEqual(
     platformRegistry.map(platform => platform.order),
-    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5]
   );
 });
 
@@ -200,6 +200,98 @@ test('Kuaishou declares its page bridge resource in the platform definition', ()
   ]);
   assert.equal(platform.syncOptions?.tabLoadTimeoutMs, 60000);
   assert.deepEqual(platform.expectedSyncScopes, ['account', 'content']);
+});
+
+test('Weixin Channels declares split account and content entrypoints without session URLs', () => {
+  const platform = getPlatformById('weixin_channels');
+
+  assert.equal(platform.id, 'weixin_channels');
+  assert.deepEqual(platform.hostPermissions, ['https://channels.weixin.qq.com/*']);
+  assert.deepEqual(
+    platform.syncEntrypoints.map(entrypoint => entrypoint.id),
+    ['home', 'videoContent', 'imageTextContent']
+  );
+  assert.deepEqual(
+    platform.syncEntrypoints.map(entrypoint => [entrypoint.id, new URL(entrypoint.url).pathname]),
+    [
+      ['home', '/platform'],
+      ['videoContent', '/platform/post/list'],
+      ['imageTextContent', '/platform/post/finderNewLifePostList']
+    ]
+  );
+  assert.equal(
+    platform.syncEntrypoints.some(entrypoint => entrypoint.url.includes('_aid=')),
+    false
+  );
+  assert.equal(
+    platform.syncEntrypoints.some(entrypoint => entrypoint.url.includes('_rid=')),
+    false
+  );
+  assert.deepEqual(platform.expectedSyncScopes, ['account', 'content']);
+  assert.equal(platform.defaultSyncEntrypointId, 'videoContent');
+  assert.equal(platform.useOnlyDefaultSyncEntrypoint, true);
+  assert.equal(
+    platform.syncEntrypoints.find(entrypoint => entrypoint.id === 'videoContent')?.urlPrefix,
+    'https://channels.weixin.qq.com/platform/post/'
+  );
+  assert.deepEqual(platform.webAccessibleResources, [
+    {
+      resources: ['content/weixin-channels-bridge.js'],
+      matches: ['https://channels.weixin.qq.com/*']
+    }
+  ]);
+  assert.deepEqual(
+    platform.contentScripts.map(entry => ({
+      js: entry.js,
+      allFrames: entry.allFrames,
+      world: entry.world || null
+    })),
+    [
+      {
+        js: ['content/weixin-channels-bridge.js'],
+        allFrames: true,
+        world: 'MAIN'
+      },
+      {
+        js: ['content/weixin-channels-metrics.js', 'content/weixin-channels-sync.js'],
+        allFrames: true,
+        world: null
+      }
+    ]
+  );
+});
+
+test('Weixin Channels popup card renders account and merged content sections', () => {
+  const platform = getPlatformById('weixin_channels');
+  const model = platform.createPopupCardModel({
+    displayName: '\u793a\u4f8b\u8d26\u53f7',
+    fans: 18,
+    accountLikeCount: 7,
+    playCount: 175,
+    likeCount: 14,
+    commentCount: 5,
+    shareCount: 3,
+    favoriteCount: 8,
+    worksCount: 3,
+    totalWorksCount: 3,
+    accountStatsLastUpdate: '2026-04-22T00:00:00.000Z',
+    contentStatsLastUpdate: '2026-04-22T00:01:00.000Z',
+    contentStatsExact: true
+  });
+
+  assert.equal(model.hasData, true);
+  assert.equal(model.accountName, '\u793a\u4f8b\u8d26\u53f7');
+  assert.deepEqual(
+    model.sections.map(section => section.key),
+    ['account', 'content']
+  );
+  assert.equal(model.sections[0].metrics[0].label, '\u7c89\u4e1d');
+  assert.equal(model.sections[0].metrics[1].label, '\u70b9\u8d5e');
+  assert.equal(model.sections[0].metrics.length, 2);
+  assert.deepEqual(
+    model.sections[1].metrics.map(metric => metric.label),
+    ['\u89c2\u770b\u6570', '\u6536\u85cf\u91cf', '\u8bc4\u8bba\u91cf', '\u5206\u4eab\u91cf']
+  );
 });
 
 test('Kuaishou empty state includes account fields', () => {

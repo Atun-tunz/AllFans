@@ -25,14 +25,38 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
     {
       resources: ['content/kuaishou-bridge.js'],
       matches: ['https://cp.kuaishou.com/*']
+    },
+    {
+      resources: ['content/weixin-channels-bridge.js'],
+      matches: ['https://channels.weixin.qq.com/*']
     }
   ]);
+  assert.ok(manifest.host_permissions.includes('https://channels.weixin.qq.com/*'));
   assert.ok(
     manifest.content_scripts.some(
       entry =>
         entry.matches?.includes('https://cp.kuaishou.com/*') &&
         entry.js?.includes('content/kuaishou-sync.js') &&
         entry.run_at === 'document_start'
+    )
+  );
+  assert.ok(
+    manifest.content_scripts.some(
+      entry =>
+        entry.matches?.includes('https://channels.weixin.qq.com/*') &&
+        entry.js?.includes('content/weixin-channels-bridge.js') &&
+        entry.run_at === 'document_start' &&
+        entry.all_frames === true &&
+        entry.world === 'MAIN'
+    )
+  );
+  assert.ok(
+    manifest.content_scripts.some(
+      entry =>
+        entry.matches?.includes('https://channels.weixin.qq.com/*') &&
+        entry.js?.includes('content/weixin-channels-sync.js') &&
+        entry.run_at === 'document_start' &&
+        entry.all_frames === true
     )
   );
 });
@@ -43,6 +67,7 @@ test('firefox manifest omits chromium-only external messaging declaration', () =
   assert.equal(manifest.background.scripts[0], 'background/background.js');
   assert.equal('service_worker' in manifest.background, false);
   assert.equal('externally_connectable' in manifest, false);
+  assert.equal(manifest.content_scripts.some(entry => 'world' in entry), false);
 });
 
 test('safari manifest keeps background scripts without Chromium external messaging settings', () => {
@@ -50,4 +75,5 @@ test('safari manifest keeps background scripts without Chromium external messagi
 
   assert.equal(manifest.background.scripts[0], 'background/background.js');
   assert.equal('externally_connectable' in manifest, false);
+  assert.equal(manifest.content_scripts.some(entry => 'world' in entry), false);
 });
