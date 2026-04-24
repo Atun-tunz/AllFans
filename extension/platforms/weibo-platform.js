@@ -2,8 +2,8 @@ import { createSplitSyncCardModel } from './platform-card-model.js';
 
 export const weiboPlatform = {
   id: 'weibo',
-  displayName: '\u5fae\u535a',
-  title: '\u5fae\u535a',
+  displayName: '微博',
+  title: '微博',
   order: 6,
   hostPermissions: ['https://weibo.com/*', 'https://me.weibo.com/*'],
   syncOptions: {
@@ -26,22 +26,22 @@ export const weiboPlatform = {
   syncEntrypoints: [
     {
       id: 'account',
-      label: '\u6253\u5f00\u5fae\u535a\u4e3b\u9875',
-      actionLabel: '\u540c\u6b65\u7c89\u4e1d\u6570\u636e',
-      url: 'https://weibo.com/',
-      urlPrefix: 'https://weibo.com/'
+      label: '打开微博主页',
+      actionLabel: '同步粉丝数据',
+      url: 'https://weibo.com/profile',
+      urlPrefix: 'https://weibo.com/profile'
     },
     {
       id: 'videoContent',
-      label: '\u6253\u5f00\u5fae\u535a\u89c6\u9891\u7ba1\u7406\u9875',
-      actionLabel: '\u540c\u6b65\u89c6\u9891\u6570\u636e',
+      label: '打开微博视频管理页',
+      actionLabel: '同步视频数据',
       url: 'https://me.weibo.com/content/video',
       urlPrefix: 'https://me.weibo.com/content/video'
     },
     {
       id: 'articleContent',
-      label: '\u6253\u5f00\u5fae\u535a\u6587\u7ae0\u7ba1\u7406\u9875',
-      actionLabel: '\u540c\u6b65\u6587\u7ae0\u6570\u636e',
+      label: '打开微博文章管理页',
+      actionLabel: '同步文章数据',
       url: 'https://me.weibo.com/content/article',
       urlPrefix: 'https://me.weibo.com/content/article'
     }
@@ -50,28 +50,28 @@ export const weiboPlatform = {
   card: {
     mode: 'split',
     homeUrl: 'https://me.weibo.com/',
-    accountNameFallback: '\u7b49\u5f85\u8bc6\u522b\u8d26\u53f7',
+    accountNameFallback: '等待识别账号',
     compactMetricKeys: ['fans', 'playCount'],
     sections: [
       {
         key: 'account',
-        title: '\u8d26\u53f7\u6982\u89c8',
+        title: '账号概览',
         syncField: 'accountStatsLastUpdate',
         metrics: [
-          { key: 'fans', label: '\u7c89\u4e1d', variant: 'accent' },
-          { key: 'likeCount', label: '\u70b9\u8d5e\u91cf', variant: 'hot'},
+          { key: 'fans', label: '粉丝', variant: 'accent' },
+          { key: 'likeCount', label: '点赞', variant: 'hot' },
         ]
       },
       {
         key: 'content',
-        title: '\u4f5c\u54c1\u6c47\u603b',
+        title: '作品汇总',
         syncField: 'contentStatsLastUpdate',
         meta: 'contentSummary',
         metrics: [
-          { key: 'playCount', label: '\u89c2\u770b\u91cf', variant: 'large' },
-          { key: 'commentCount', label: '\u8bc4\u8bba\u91cf' },
-          { key: 'shareCount', label: '\u8f6c\u53d1\u91cf' },
-          { key: 'danmakuCount', label: '\u5f39\u5e55\u91cf' }
+          { key: 'playCount', label: '观看量', variant: 'large' },
+          { key: 'commentCount', label: '评论量' },
+          { key: 'shareCount', label: '转发量' },
+          { key: 'danmakuCount', label: '弹幕量' }
         ]
       }
     ]
@@ -122,7 +122,7 @@ export const weiboPlatform = {
       return {
         platformId: 'weibo',
         entrypointId: 'videoContent',
-        platformName: '\u5fae\u535a'
+        platformName: '微博'
       };
     }
 
@@ -130,7 +130,7 @@ export const weiboPlatform = {
       return {
         platformId: 'weibo',
         entrypointId: 'articleContent',
-        platformName: '\u5fae\u535a'
+        platformName: '微博'
       };
     }
 
@@ -138,7 +138,7 @@ export const weiboPlatform = {
       return {
         platformId: 'weibo',
         entrypointId: 'account',
-        platformName: '\u5fae\u535a'
+        platformName: '微博'
       };
     }
 

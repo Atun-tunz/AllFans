@@ -37,6 +37,15 @@
     return 0;
   }
 
+  function isAccountResponseUrl(url) {
+    try {
+      const target = new URL(String(url), window.location.href);
+      return target.hostname === 'weibo.com' || target.hostname === 'me.weibo.com';
+    } catch {
+      return false;
+    }
+  }
+
   function createKindState() {
     return {
       itemsById: {},
@@ -347,6 +356,7 @@
 
   globalThis.AllFansWeiboMetrics = {
     normalizeMetricValue,
+    isAccountResponseUrl,
     createContentScanState,
     hasUsableAccountResponse,
     hasUsableVideoListResponse,

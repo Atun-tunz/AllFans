@@ -179,7 +179,15 @@
         return;
       }
 
-      if (payload.type === BRIDGE_ACCOUNT_EVENT_TYPE && metrics.hasUsableAccountResponse(payload.payload)) {
+      if (payload.type === BRIDGE_ACCOUNT_EVENT_TYPE) {
+        if (!metrics.isAccountResponseUrl(payload.url)) {
+          return;
+        }
+
+        if (!metrics.hasUsableAccountResponse(payload.payload)) {
+          return;
+        }
+
         pendingAccountSnapshot = {
           url: payload.url,
           pageUrl: payload.pageUrl,
