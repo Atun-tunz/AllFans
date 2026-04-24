@@ -3,13 +3,15 @@ import { douyinPlatform } from '../platforms/douyin-platform.js';
 import { xiaohongshuPlatform } from '../platforms/xiaohongshu-card-platform.js';
 import { kuaishouPlatform } from '../platforms/kuaishou-platform.js';
 import { weixinChannelsPlatform } from '../platforms/weixin-channels-platform.js';
+import { weiboPlatform } from '../platforms/weibo-platform.js';
 
 export const platformRegistry = [
   bilibiliPlatform,
   douyinPlatform,
   xiaohongshuPlatform,
   kuaishouPlatform,
-  weixinChannelsPlatform
+  weixinChannelsPlatform,
+  weiboPlatform
 ].sort(
   (left, right) => left.order - right.order
 );

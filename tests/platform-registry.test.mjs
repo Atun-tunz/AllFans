@@ -9,11 +9,11 @@ import {
 test('platformRegistry exposes a stable ordered list of supported platforms', () => {
   assert.deepEqual(
     platformRegistry.map(platform => platform.id),
-    ['bilibili', 'douyin', 'xiaohongshu', 'kuaishou', 'weixin_channels']
+    ['bilibili', 'douyin', 'xiaohongshu', 'kuaishou', 'weixin_channels', 'weibo']
   );
   assert.deepEqual(
     platformRegistry.map(platform => platform.order),
-    [1, 2, 3, 4, 5]
+    [1, 2, 3, 4, 5, 6]
   );
 });
 
@@ -302,6 +302,88 @@ test('Kuaishou empty state includes account fields', () => {
   assert.equal(state.accountLikeCount, 0);
   assert.equal(state.accountStatsLastUpdate, null);
   assert.equal(state.accountUpdateSource, null);
+});
+
+test('Weibo declares account, video, and article entrypoints with page bridge resources', () => {
+  const platform = getPlatformById('weibo');
+
+  assert.equal(platform.id, 'weibo');
+  assert.deepEqual(platform.hostPermissions, ['https://weibo.com/*', 'https://me.weibo.com/*']);
+  assert.deepEqual(
+    platform.syncEntrypoints.map(entrypoint => entrypoint.id),
+    ['account', 'videoContent', 'articleContent']
+  );
+  assert.equal(platform.syncEntrypoints[0].url, 'https://weibo.com/profile');
+  assert.equal(platform.syncEntrypoints[1].url, 'https://me.weibo.com/content/video');
+  assert.equal(platform.syncEntrypoints[2].url, 'https://me.weibo.com/content/article');
+  assert.deepEqual(platform.expectedSyncScopes, ['account', 'content']);
+  assert.deepEqual(platform.webAccessibleResources, [
+    {
+      resources: ['content/weibo-bridge.js'],
+      matches: ['https://weibo.com/*', 'https://me.weibo.com/*']
+    }
+  ]);
+  assert.deepEqual(
+    platform.contentScripts.map(entry => entry.js),
+    [['content/weibo-metrics.js', 'content/weibo-sync.js']]
+  );
+  assert.equal(
+    platform.matchesActiveTab('https://weibo.com/profile')?.entrypointId,
+    'account'
+  );
+  assert.equal(
+    platform.matchesActiveTab('https://weibo.com/u/9161791838')?.entrypointId,
+    'account'
+  );
+  assert.equal(
+    platform.matchesActiveTab('https://me.weibo.com/content/video')?.entrypointId,
+    'videoContent'
+  );
+  assert.equal(
+    platform.matchesActiveTab('https://me.weibo.com/content/article')?.entrypointId,
+    'articleContent'
+  );
+});
+
+test('Weibo popup card renders account and content metrics', () => {
+  const platform = getPlatformById('weibo');
+  const model = platform.createPopupCardModel({
+    displayName: '\u963f\u5c6f\u7684\u5c6f',
+    fans: 1,
+    playCount: 14,
+    likeCount: 5,
+    commentCount: 3,
+    shareCount: 4,
+    danmakuCount: 5,
+    worksCount: 2,
+    totalWorksCount: 2,
+    accountStatsLastUpdate: '2026-04-23T00:00:00.000Z',
+    contentStatsLastUpdate: '2026-04-23T00:03:00.000Z',
+    contentStatsExact: true
+  });
+
+  assert.equal(model.hasData, true);
+  assert.equal(model.accountName, '\u963f\u5c6f\u7684\u5c6f');
+  assert.deepEqual(
+    model.sections.map(section => section.key),
+    ['account', 'content']
+  );
+  assert.deepEqual(
+    model.sections[0].metrics.map(metric => metric.label),
+    ['\u7c89\u4e1d', '\u70b9\u8d5e']
+  );
+  assert.deepEqual(
+    model.sections[0].metrics.map(metric => metric.variant),
+    ['accent', 'hot']
+  );
+  assert.deepEqual(
+    model.sections[1].metrics.map(metric => metric.label),
+    ['\u89c2\u770b\u91cf', '\u8bc4\u8bba\u91cf', '\u8f6c\u53d1\u91cf', '\u5f39\u5e55\u91cf']
+  );
+  assert.deepEqual(
+    model.compactMetrics.map(metric => metric.label),
+    ['\u7c89\u4e1d', '\u89c2\u770b\u91cf']
+  );
 });
 
 test('Kuaishou summary contributions include fans and prefer account likes', () => {

@@ -330,3 +330,21 @@ test('background marks multi-entrypoint sync successful when the aggregated scop
   assert.match(script, /const aggregateScope = aggregateSyncScope\(successResults\);/);
   assert.match(script, /status:\s*isPlatformScopeComplete\(platform,\s*aggregateScope\) \? 'success' : 'partial'/);
 });
+
+test('weibo sync opens explicit video and article manager pages for content capture', () => {
+  const platformPath = path.join(process.cwd(), 'extension', 'platforms', 'weibo-platform.js');
+  const platform = fs.readFileSync(platformPath, 'utf8');
+  const syncPath = path.join(process.cwd(), 'extension', 'content', 'weibo-sync.js');
+  const sync = fs.readFileSync(syncPath, 'utf8');
+
+  assert.match(platform, /expectedSyncScopes:\s*\['account', 'content'\]/);
+  assert.match(platform, /https:\/\/weibo\.com\/profile/);
+  assert.match(platform, /id:\s*'videoContent'/);
+  assert.match(platform, /https:\/\/me\.weibo\.com\/content\/video/);
+  assert.match(platform, /id:\s*'articleContent'/);
+  assert.match(platform, /https:\/\/me\.weibo\.com\/content\/article/);
+  assert.match(platform, /contentStatsLastUpdate/);
+  assert.match(sync, /function getContentKindsForRole\(role\)/);
+  assert.match(sync, /videoContent/);
+  assert.match(sync, /articleContent/);
+});

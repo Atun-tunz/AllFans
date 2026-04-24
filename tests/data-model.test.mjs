@@ -84,3 +84,25 @@ test('calculateSummary aggregates only opted-in platforms', () => {
   assert.equal(summary.totalPlayCount, 583969);
   assert.equal(summary.totalLikeCount, 14766);
 });
+
+test('createDefaultSettings includes platformOrder with all platform ids', () => {
+  const settings = createDefaultSettings();
+  const platformIds = platformRegistry.map(platform => platform.id);
+
+  assert.deepEqual(settings.platformOrder, platformIds);
+});
+
+test('normalizeSettings filters unknown platform ids from platformOrder', () => {
+  const settings = normalizeSettings({
+    platformOrder: ['douyin', 'unknown', 'bilibili', 'ghost']
+  });
+
+  assert.deepEqual(settings.platformOrder, ['douyin', 'bilibili']);
+});
+
+test('normalizeSettings uses default platformOrder when not provided', () => {
+  const settings = normalizeSettings({});
+  const platformIds = platformRegistry.map(platform => platform.id);
+
+  assert.deepEqual(settings.platformOrder, platformIds);
+});

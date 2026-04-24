@@ -25,7 +25,9 @@
     "https://creator.douyin.com/*",
     "https://creator.xiaohongshu.com/*",
     "https://cp.kuaishou.com/*",
-    "https://channels.weixin.qq.com/*"
+    "https://channels.weixin.qq.com/*",
+    "https://weibo.com/*",
+    "https://me.weibo.com/*"
   ],
   "background": {
     "service_worker": "background/main.js",
@@ -64,6 +66,11 @@
       "js": ["content/weixin-channels-metrics.js", "content/weixin-channels-sync.js"],
       "run_at": "document_start",
       "all_frames": true
+    },
+    {
+      "matches": ["https://weibo.com/*", "https://me.weibo.com/*"],
+      "js": ["content/weibo-metrics.js", "content/weibo-sync.js"],
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
@@ -78,6 +85,10 @@
     {
       "resources": ["content/weixin-channels-bridge.js"],
       "matches": ["https://channels.weixin.qq.com/*"]
+    },
+    {
+      "resources": ["content/weibo-bridge.js"],
+      "matches": ["https://weibo.com/*", "https://me.weibo.com/*"]
     }
   ],
   "action": {

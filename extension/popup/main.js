@@ -70,7 +70,18 @@ function setSyncAllButtonState(isRunning) {
 }
 
 function getEnabledPlatforms(data) {
-  return platformRegistry.filter(platform => data.settings.enabledPlatformIds.includes(platform.id));
+  const enabledSet = new Set(data.settings.enabledPlatformIds);
+  const orderMap = new Map(
+    (data.settings.platformOrder || []).map((platformId, index) => [platformId, index])
+  );
+
+  return platformRegistry
+    .filter(platform => enabledSet.has(platform.id))
+    .sort((left, right) => {
+      const leftOrder = orderMap.has(left.id) ? orderMap.get(left.id) : left.order;
+      const rightOrder = orderMap.has(right.id) ? orderMap.get(right.id) : right.order;
+      return leftOrder - rightOrder;
+    });
 }
 
 function getPlatformLastUpdate(platformData) {
@@ -457,21 +468,23 @@ function renderPlatformList(data, enabledPlatforms) {
     return;
   }
 
-  for (const platform of enabledPlatforms) {
+  for (let index = 0; index < enabledPlatforms.length; index++) {
+    const platform = enabledPlatforms[index];
     const model = platform.createPopupCardModel(data.platforms[platform.id], {
       isEnabled: true,
       isSyncEnabled: data.settings.syncEnabledPlatformIds.includes(platform.id),
       isIncludedInSummary: data.settings.summaryIncludedPlatformIds.includes(platform.id)
     });
-    container.appendChild(renderPlatformCard(platform, model, data));
+    container.appendChild(renderPlatformCard(platform, model, data, index));
   }
 }
 
-function renderPlatformCard(platform, model, data) {
+function renderPlatformCard(platform, model, data, displayIndex) {
   const card = document.createElement('section');
   const isExpanded = expandedPlatforms.has(model.id);
   const statusBadge = getPlatformStatusBadge(platform, data);
   card.className = `platform-card${isExpanded ? '' : ' is-collapsed'}${model.hasData ? ' has-data' : ''}`;
+  card.dataset.platformId = platform.id;
 
   const compactHtml = model.compactMetrics
     .map(
@@ -499,9 +512,19 @@ function renderPlatformCard(platform, model, data) {
     .join('');
 
   card.innerHTML = `
+    <div class="platform-drag-handle" title="拖动排序">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor">
+        <circle cx="3" cy="2" r="1.5"/>
+        <circle cx="9" cy="2" r="1.5"/>
+        <circle cx="15" cy="2" r="1.5"/>
+        <circle cx="3" cy="10" r="1.5"/>
+        <circle cx="9" cy="10" r="1.5"/>
+        <circle cx="15" cy="10" r="1.5"/>
+      </svg>
+    </div>
     <div class="platform-card-header">
       <div class="platform-title-wrap">
-        <p class="platform-kicker">${model.kicker}</p>
+        <p class="platform-kicker">Platform ${String(displayIndex + 1).padStart(2, '0')}</p>
         <button class="platform-name-link" type="button">${model.title}</button>
         <p class="platform-account-name">${model.accountName}</p>
       </div>
@@ -594,6 +617,23 @@ function renderPlatformCard(platform, model, data) {
     }
   });
 
+  const dragHandle = card.querySelector('.platform-drag-handle');
+  if (dragHandle) {
+    dragHandle.addEventListener('mousedown', () => {
+      card.setAttribute('draggable', 'true');
+    });
+
+    dragHandle.addEventListener('mouseup', () => {
+      card.removeAttribute('draggable');
+    });
+  }
+
+  card.addEventListener('dragstart', handleDragStart);
+  card.addEventListener('dragover', handleDragOver);
+  card.addEventListener('dragleave', handleDragLeave);
+  card.addEventListener('drop', handleDrop);
+  card.addEventListener('dragend', handleDragEnd);
+
   return card;
 }
 
@@ -685,4 +725,103 @@ function handleArrowKeyNav(e) {
 
   cards[nextIndex].querySelector('.platform-name-link')?.focus();
   e.preventDefault();
+}
+
+let draggedElement = null;
+
+function handleDragStart(e) {
+  draggedElement = this;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', this.dataset.platformId);
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  e.dataTransfer.dropEffect = 'move';
+
+  const draggingCard = document.querySelector('.platform-card.dragging');
+  if (draggingCard && draggingCard !== this) {
+    this.classList.add('drag-over');
+  }
+
+  return false;
+}
+
+function handleDragLeave() {
+  this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+
+  e.preventDefault();
+
+  if (draggedElement !== this) {
+    const container = document.getElementById('platformList');
+    const allCards = Array.from(container.querySelectorAll('.platform-card'));
+    const draggedIndex = allCards.indexOf(draggedElement);
+    const droppedIndex = allCards.indexOf(this);
+
+    if (draggedIndex < droppedIndex) {
+      this.parentNode.insertBefore(draggedElement, this.nextSibling);
+    } else {
+      this.parentNode.insertBefore(draggedElement, this);
+    }
+
+    savePlatformOrder();
+  }
+
+  this.classList.remove('drag-over');
+
+  return false;
+}
+
+function handleDragEnd() {
+  this.classList.remove('dragging');
+  this.removeAttribute('draggable');
+
+  const allCards = document.querySelectorAll('.platform-card');
+  allCards.forEach(card => card.classList.remove('drag-over'));
+
+  draggedElement = null;
+}
+
+async function savePlatformOrder() {
+  const container = document.getElementById('platformList');
+  const cards = Array.from(container.querySelectorAll('.platform-card'));
+  const newOrder = cards.map(card => card.dataset.platformId);
+
+  try {
+    const response = await BrowserApi.runtime.sendMessage({
+      type: MESSAGE_TYPES.UPDATE_SETTINGS,
+      settings: { platformOrder: newOrder }
+    });
+
+    if (!response?.success) {
+      throw new Error(response?.error || '保存排序失败');
+    }
+
+    updatePlatformNumbers();
+    toast.show('平台顺序已保存', 'success');
+  } catch (error) {
+    console.error('AllFans: failed to save platform order', error);
+    toast.show('保存排序失败，请稍后重试', 'error');
+  }
+}
+
+function updatePlatformNumbers() {
+  const container = document.getElementById('platformList');
+  const cards = Array.from(container.querySelectorAll('.platform-card'));
+
+  cards.forEach((card, index) => {
+    const kicker = card.querySelector('.platform-kicker');
+    if (kicker) {
+      kicker.textContent = `Platform ${String(index + 1).padStart(2, '0')}`;
+    }
+  });
 }

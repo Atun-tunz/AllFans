@@ -29,9 +29,15 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
     {
       resources: ['content/weixin-channels-bridge.js'],
       matches: ['https://channels.weixin.qq.com/*']
+    },
+    {
+      resources: ['content/weibo-bridge.js'],
+      matches: ['https://weibo.com/*', 'https://me.weibo.com/*']
     }
   ]);
   assert.ok(manifest.host_permissions.includes('https://channels.weixin.qq.com/*'));
+  assert.ok(manifest.host_permissions.includes('https://weibo.com/*'));
+  assert.ok(manifest.host_permissions.includes('https://me.weibo.com/*'));
   assert.ok(
     manifest.content_scripts.some(
       entry =>
@@ -57,6 +63,15 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
         entry.js?.includes('content/weixin-channels-sync.js') &&
         entry.run_at === 'document_start' &&
         entry.all_frames === true
+    )
+  );
+  assert.ok(
+    manifest.content_scripts.some(
+      entry =>
+        entry.matches?.includes('https://weibo.com/*') &&
+        entry.matches?.includes('https://me.weibo.com/*') &&
+        entry.js?.includes('content/weibo-sync.js') &&
+        entry.run_at === 'document_start'
     )
   );
 });

@@ -3,6 +3,7 @@ import './data-model.test.mjs';
 import './douyin-metrics.test.mjs';
 import './kuaishou-metrics.test.mjs';
 import './weixin-channels-metrics.test.mjs';
+import './weibo-metrics.test.mjs';
 import './xiaohongshu-metrics.test.mjs';
 import './edge-sync-compatibility.test.mjs';
 import './local-bridge.test.mjs';

@@ -48,6 +48,7 @@ export function createDefaultSettings() {
     enabledPlatformIds: [...platformIds],
     syncEnabledPlatformIds: [...platformIds],
     summaryIncludedPlatformIds: [...platformIds],
+    platformOrder: [...platformIds],
     externalApiEnabled: false,
     localBridgeEnabled: false,
     localBridgeEndpoint: DEFAULT_LOCAL_BRIDGE_ENDPOINT
@@ -76,6 +77,10 @@ export function normalizeSettings(settings = {}) {
     summaryIncludedPlatformIds: normalizePlatformIdList(
       settings.summaryIncludedPlatformIds,
       defaults.summaryIncludedPlatformIds
+    ),
+    platformOrder: normalizePlatformIdList(
+      settings.platformOrder,
+      defaults.platformOrder
     ),
     externalApiEnabled: Boolean(settings.externalApiEnabled),
     localBridgeEnabled: Boolean(settings.localBridgeEnabled),
