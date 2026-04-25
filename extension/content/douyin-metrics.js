@@ -8,7 +8,6 @@
       itemsById: {},
       scannedItemCount: 0,
       responseCount: 0,
-      hasMore: false,
       total: 0
     };
   }
@@ -53,7 +52,6 @@
       ...state,
       itemsById: { ...state.itemsById },
       responseCount: state.responseCount + 1,
-      hasMore: false,
       total: normalizeMetricValue(response?.total)
     };
 
@@ -110,13 +108,6 @@
     return patch;
   }
 
-  function hasSufficientDouyinData(platformPatch) {
-    return (
-      Number(platformPatch?.worksCount) > 0 ||
-      (Boolean(platformPatch?.contentStatsExact) && Number(platformPatch?.totalWorksCount) === 0)
-    );
-  }
-
   function hasSufficientDouyinAccountData(platformPatch) {
     return (
       Number(platformPatch?.fans) > 0 ||
@@ -126,7 +117,6 @@
   }
 
   globalThis.AllFansDouyinMetrics = {
-    normalizeMetricValue,
     createContentScanState,
     isWorkListResponseUrl,
     hasUsableWorkListResponse,
@@ -135,7 +125,6 @@
     buildAccountPlatformPatch,
     mergeContentResponse,
     buildContentPlatformPatch,
-    hasSufficientDouyinData,
     hasSufficientDouyinAccountData
   };
 })();

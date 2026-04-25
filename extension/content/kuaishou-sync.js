@@ -236,12 +236,17 @@
     throw new Error('快手创作者页面加载超时，请稍后再试。');
   }
 
-  function requestPhotoListPageFromBridge(url) {
+  function requestBridgeSnapshot({
+    requestType,
+    requestIdPrefix,
+    timeoutMessage,
+    url
+  }) {
     return new Promise((resolve, reject) => {
-      const requestId = `kuaishou-page-${Date.now()}-${bridgeRequestId++}`;
+      const requestId = `${requestIdPrefix}-${Date.now()}-${bridgeRequestId++}`;
       const timeoutId = setTimeout(() => {
         pendingBridgeRequests.delete(requestId);
-        reject(new Error('Kuaishou bridge request timed out'));
+        reject(new Error(timeoutMessage));
       }, WAIT_OPTIONS.photoListRequestTimeoutMs);
 
       pendingBridgeRequests.set(requestId, {
@@ -253,37 +258,29 @@
       window.postMessage(
         {
           source: BRIDGE_SOURCE,
-          type: BRIDGE_FETCH_REQUEST_TYPE,
+          type: requestType,
           requestId,
-          url
+          ...(url ? { url } : {})
         },
         '*'
       );
     });
   }
 
+  function requestPhotoListPageFromBridge(url) {
+    return requestBridgeSnapshot({
+      requestType: BRIDGE_FETCH_REQUEST_TYPE,
+      requestIdPrefix: 'kuaishou-page',
+      timeoutMessage: 'Kuaishou bridge request timed out',
+      url
+    });
+  }
+
   function requestHomeInfoFromBridge() {
-    return new Promise((resolve, reject) => {
-      const requestId = `kuaishou-account-${Date.now()}-${bridgeRequestId++}`;
-      const timeoutId = setTimeout(() => {
-        pendingBridgeRequests.delete(requestId);
-        reject(new Error('Kuaishou account bridge request timed out'));
-      }, WAIT_OPTIONS.photoListRequestTimeoutMs);
-
-      pendingBridgeRequests.set(requestId, {
-        resolve,
-        reject,
-        timeoutId
-      });
-
-      window.postMessage(
-        {
-          source: BRIDGE_SOURCE,
-          type: BRIDGE_ACCOUNT_FETCH_REQUEST_TYPE,
-          requestId
-        },
-        '*'
-      );
+    return requestBridgeSnapshot({
+      requestType: BRIDGE_ACCOUNT_FETCH_REQUEST_TYPE,
+      requestIdPrefix: 'kuaishou-account',
+      timeoutMessage: 'Kuaishou account bridge request timed out'
     });
   }
 
@@ -341,12 +338,13 @@
     return null;
   }
 
-  async function waitForPhotoListSnapshot(metrics) {
+  async function waitForReusableSnapshot(getSnapshot, isReusable, timeoutMs) {
     const startedAt = Date.now();
 
-    while (Date.now() - startedAt < WAIT_OPTIONS.photoListRequestTimeoutMs) {
-      if (metrics.hasReusablePhotoListSnapshot(pendingSnapshot)) {
-        return pendingSnapshot;
+    while (Date.now() - startedAt < timeoutMs) {
+      const snapshot = getSnapshot();
+      if (isReusable(snapshot)) {
+        return snapshot;
       }
 
       await delay(WAIT_OPTIONS.pageReadyIntervalMs);
@@ -355,18 +353,20 @@
     return null;
   }
 
+  async function waitForPhotoListSnapshot(metrics) {
+    return waitForReusableSnapshot(
+      () => pendingSnapshot,
+      snapshot => metrics.hasReusablePhotoListSnapshot(snapshot),
+      WAIT_OPTIONS.photoListRequestTimeoutMs
+    );
+  }
+
   async function waitForHomeInfoSnapshot(metrics) {
-    const startedAt = Date.now();
-
-    while (Date.now() - startedAt < WAIT_OPTIONS.homeInfoSnapshotTimeoutMs) {
-      if (metrics.hasReusableHomeInfoSnapshot(pendingAccountSnapshot)) {
-        return pendingAccountSnapshot;
-      }
-
-      await delay(WAIT_OPTIONS.pageReadyIntervalMs);
-    }
-
-    return null;
+    return waitForReusableSnapshot(
+      () => pendingAccountSnapshot,
+      snapshot => metrics.hasReusableHomeInfoSnapshot(snapshot),
+      WAIT_OPTIONS.homeInfoSnapshotTimeoutMs
+    );
   }
 
   async function collectAllPhotoListData(metrics) {
@@ -450,8 +450,7 @@
     }
 
     const metrics = getMetricsModule();
-    await installBridgeScript();
-    bindBridgeListener(metrics);
+    await prepareKuaishouBridge();
     if (!metrics.hasReusablePhotoListSnapshot(pendingSnapshot)) {
       pendingSnapshot = null;
     }

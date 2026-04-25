@@ -24,14 +24,11 @@
   const isMatch = url => typeof url === 'string' && url.includes(MATCHER);
   const isHomeInfoMatch = url =>
     typeof url === 'string' && url.includes(HOME_INFO_MATCHER);
-  const postPayload = (url, payload) => {
-    window.postMessage({ source: SOURCE, type: PHOTO_LIST_EVENT_TYPE, url, payload }, '*');
+  const postCapturedPayload = (type, url, payload) => {
+    window.postMessage({ source: SOURCE, type, url, payload }, '*');
   };
-  const postAccountPayload = (url, payload) => {
-    window.postMessage({ source: SOURCE, type: HOME_INFO_EVENT_TYPE, url, payload }, '*');
-  };
-  const postFetchResponse = message => {
-    window.postMessage({ source: SOURCE, type: FETCH_RESPONSE_TYPE, ...message }, '*');
+  const postFetchResponse = (type, message) => {
+    window.postMessage({ source: SOURCE, type, ...message }, '*');
   };
   const serializeHeaders = headersLike => {
     try {
@@ -89,12 +86,12 @@
   });
   const buildAccountUrl = () =>
     latestAccountRequestTemplate?.url || `${window.location.origin}${HOME_INFO_MATCHER}`;
-  const requestPhotoListPage = async (requestId, url) => {
+  const requestWithTemplate = async ({ requestId, url, template, responseType }) => {
     try {
-      const response = await window.fetch(url, buildReplayInit(latestPhotoListRequestTemplate));
+      const response = await window.fetch(url, buildReplayInit(template));
       const payload = await response.clone().json().catch(() => null);
 
-      postFetchResponse({
+      postFetchResponse(responseType, {
         requestId,
         url,
         ok: response.ok,
@@ -102,36 +99,27 @@
         payload
       });
     } catch (error) {
-      postFetchResponse({
+      postFetchResponse(responseType, {
         requestId,
         url,
         error: String(error?.message || error || 'Unknown bridge error')
       });
     }
   };
+  const requestPhotoListPage = (requestId, url) =>
+    requestWithTemplate({
+      requestId,
+      url,
+      template: latestPhotoListRequestTemplate,
+      responseType: FETCH_RESPONSE_TYPE
+    });
   const requestAccountInfo = async requestId => {
-    const url = buildAccountUrl();
-
-    try {
-      const response = await window.fetch(url, buildReplayInit(latestAccountRequestTemplate));
-      const payload = await response.clone().json().catch(() => null);
-
-      postFetchResponse({
-        type: ACCOUNT_FETCH_RESPONSE_TYPE,
-        requestId,
-        url,
-        ok: response.ok,
-        status: response.status,
-        payload
-      });
-    } catch (error) {
-      postFetchResponse({
-        type: ACCOUNT_FETCH_RESPONSE_TYPE,
-        requestId,
-        url,
-        error: String(error?.message || error || 'Unknown bridge error')
-      });
-    }
+    requestWithTemplate({
+      requestId,
+      url: buildAccountUrl(),
+      template: latestAccountRequestTemplate,
+      responseType: ACCOUNT_FETCH_RESPONSE_TYPE
+    });
   };
 
   window.addEventListener('message', event => {
@@ -158,12 +146,16 @@
       const template = captureFetchTemplate(args);
       if (isMatch(template.url)) {
         latestPhotoListRequestTemplate = template;
-        response.clone().json().then(payload => postPayload(template.url, payload)).catch(() => {});
+        response.clone().json().then(payload => {
+          postCapturedPayload(PHOTO_LIST_EVENT_TYPE, template.url, payload);
+        }).catch(() => {});
       }
 
       if (isHomeInfoMatch(template.url)) {
         latestAccountRequestTemplate = template;
-        response.clone().json().then(payload => postAccountPayload(template.url, payload)).catch(() => {});
+        response.clone().json().then(payload => {
+          postCapturedPayload(HOME_INFO_EVENT_TYPE, template.url, payload);
+        }).catch(() => {});
       }
     } catch {}
 
@@ -208,13 +200,21 @@
 
         if (isMatch(this.__allfansKuaishouUrl)) {
           latestPhotoListRequestTemplate = template;
-          postPayload(this.__allfansKuaishouUrl, JSON.parse(this.responseText));
+          postCapturedPayload(
+            PHOTO_LIST_EVENT_TYPE,
+            this.__allfansKuaishouUrl,
+            JSON.parse(this.responseText)
+          );
           return;
         }
 
         if (isHomeInfoMatch(this.__allfansKuaishouUrl)) {
           latestAccountRequestTemplate = template;
-          postAccountPayload(this.__allfansKuaishouUrl, JSON.parse(this.responseText));
+          postCapturedPayload(
+            HOME_INFO_EVENT_TYPE,
+            this.__allfansKuaishouUrl,
+            JSON.parse(this.responseText)
+          );
         }
       } catch {}
     });

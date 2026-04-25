@@ -89,7 +89,6 @@ test('buildApiSnapshot maps Bilibili stat API response into runtime data shape',
   });
   assert.equal(result.stats.fansFound, true);
   assert.equal(result.stats.videoMetricCount, 7);
-  assert.equal(result.stats.source, 'api');
 });
 
 test('buildUserPatch maps Bilibili nav response into uid and display name', () => {

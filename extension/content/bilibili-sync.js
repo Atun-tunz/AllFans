@@ -39,8 +39,7 @@
       },
       stats: {
         fansFound: false,
-        videoMetricCount: 0,
-        cardCount: 0
+        videoMetricCount: 0
       }
     };
   }
@@ -77,8 +76,6 @@
     const result = createEmptyResult();
     const fanItems = document.querySelectorAll('.fan-overview .fan-item');
     const videoCards = document.querySelectorAll('.section.video div.data-card');
-
-    result.stats.cardCount = videoCards.length;
 
     if (fanItems.length >= 1) {
       const fansText = fanItems[0].querySelector('.fan-num')?.textContent?.trim();

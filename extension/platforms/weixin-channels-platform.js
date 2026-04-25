@@ -132,15 +132,17 @@ export const weixinChannelsPlatform = {
     };
   },
   matchesActiveTab(url) {
+    const createMatch = entrypointId => ({
+      platformId: 'weixin_channels',
+      entrypointId,
+      platformName: '\u5fae\u4fe1\u89c6\u9891\u53f7'
+    });
+
     try {
       const target = new URL(String(url || ''));
       const requestedEntry = target.searchParams.get('allfansEntry');
       if (requestedEntry === 'videoContent' || requestedEntry === 'imageTextContent') {
-        return {
-          platformId: 'weixin_channels',
-          entrypointId: requestedEntry,
-          platformName: '\u5fae\u4fe1\u89c6\u9891\u53f7'
-        };
+        return createMatch(requestedEntry);
       }
     } catch {}
 
@@ -148,30 +150,18 @@ export const weixinChannelsPlatform = {
       url?.startsWith('https://channels.weixin.qq.com/platform/post/finderNewLifePostList') ||
       url?.startsWith('https://channels.weixin.qq.com/micro/content/post/finderNewLifePostList')
     ) {
-      return {
-        platformId: 'weixin_channels',
-        entrypointId: 'imageTextContent',
-        platformName: '\u5fae\u4fe1\u89c6\u9891\u53f7'
-      };
+      return createMatch('imageTextContent');
     }
 
     if (
       url?.startsWith('https://channels.weixin.qq.com/platform/post/list') ||
       url?.startsWith('https://channels.weixin.qq.com/micro/content/post/list')
     ) {
-      return {
-        platformId: 'weixin_channels',
-        entrypointId: 'videoContent',
-        platformName: '\u5fae\u4fe1\u89c6\u9891\u53f7'
-      };
+      return createMatch('videoContent');
     }
 
     if (url?.startsWith('https://channels.weixin.qq.com/platform')) {
-      return {
-        platformId: 'weixin_channels',
-        entrypointId: 'home',
-        platformName: '\u5fae\u4fe1\u89c6\u9891\u53f7'
-      };
+      return createMatch('home');
     }
 
     return null;

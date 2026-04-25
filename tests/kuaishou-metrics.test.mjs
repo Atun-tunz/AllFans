@@ -28,7 +28,6 @@ test('createContentScanState 应创建初始状态', () => {
     displayName: '',
     scannedItemCount: 0,
     responseCount: 0,
-    hasMore: false,
     total: 0
   });
 });

@@ -5,14 +5,14 @@ export const weiboPlatform = {
   displayName: '微博',
   title: '微博',
   order: 6,
-  hostPermissions: ['https://weibo.com/*', 'https://me.weibo.com/*'],
+  hostPermissions: ['https://weibo.com/*', 'https://www.weibo.com/*', 'https://me.weibo.com/*'],
   syncOptions: {
     tabLoadTimeoutMs: 60000
   },
   expectedSyncScopes: ['account', 'content'],
   contentScripts: [
     {
-      matches: ['https://weibo.com/*', 'https://me.weibo.com/*'],
+      matches: ['https://weibo.com/*', 'https://www.weibo.com/*', 'https://me.weibo.com/*'],
       js: ['content/weibo-metrics.js', 'content/weibo-sync.js'],
       runAt: 'document_start'
     }
@@ -20,7 +20,7 @@ export const weiboPlatform = {
   webAccessibleResources: [
     {
       resources: ['content/weibo-bridge.js'],
-      matches: ['https://weibo.com/*', 'https://me.weibo.com/*']
+      matches: ['https://weibo.com/*', 'https://www.weibo.com/*', 'https://me.weibo.com/*']
     }
   ],
   syncEntrypoints: [
@@ -28,8 +28,8 @@ export const weiboPlatform = {
       id: 'account',
       label: '打开微博主页',
       actionLabel: '同步粉丝数据',
-      url: 'https://weibo.com/profile',
-      urlPrefix: 'https://weibo.com/profile'
+      url: 'https://weibo.com/',
+      urlPrefix: 'https://weibo.com/'
     },
     {
       id: 'videoContent',
@@ -134,7 +134,7 @@ export const weiboPlatform = {
       };
     }
 
-    if (url?.startsWith('https://weibo.com/')) {
+    if (url?.startsWith('https://weibo.com/') || url?.startsWith('https://www.weibo.com/')) {
       return {
         platformId: 'weibo',
         entrypointId: 'account',

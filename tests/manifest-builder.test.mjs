@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { buildManifestForTarget } from '../scripts/lib/manifest-builder.mjs';
 
@@ -32,11 +34,12 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
     },
     {
       resources: ['content/weibo-bridge.js'],
-      matches: ['https://weibo.com/*', 'https://me.weibo.com/*']
+      matches: ['https://weibo.com/*', 'https://www.weibo.com/*', 'https://me.weibo.com/*']
     }
   ]);
   assert.ok(manifest.host_permissions.includes('https://channels.weixin.qq.com/*'));
   assert.ok(manifest.host_permissions.includes('https://weibo.com/*'));
+  assert.ok(manifest.host_permissions.includes('https://www.weibo.com/*'));
   assert.ok(manifest.host_permissions.includes('https://me.weibo.com/*'));
   assert.ok(
     manifest.content_scripts.some(
@@ -69,6 +72,7 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
     manifest.content_scripts.some(
       entry =>
         entry.matches?.includes('https://weibo.com/*') &&
+        entry.matches?.includes('https://www.weibo.com/*') &&
         entry.matches?.includes('https://me.weibo.com/*') &&
         entry.js?.includes('content/weibo-sync.js') &&
         entry.run_at === 'document_start'
@@ -91,4 +95,21 @@ test('safari manifest keeps background scripts without Chromium external messagi
   assert.equal(manifest.background.scripts[0], 'background/background.js');
   assert.equal('externally_connectable' in manifest, false);
   assert.equal(manifest.content_scripts.some(entry => 'world' in entry), false);
+});
+
+test('source manifest keeps platform declarations aligned with generated chrome manifest', () => {
+  const sourceManifest = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'extension', 'manifest.json'), 'utf8')
+  );
+  const generatedManifest = buildManifestForTarget('chrome');
+
+  assert.deepEqual(
+    [...sourceManifest.host_permissions].sort(),
+    [...generatedManifest.host_permissions].sort()
+  );
+  assert.deepEqual(sourceManifest.content_scripts, generatedManifest.content_scripts);
+  assert.deepEqual(
+    sourceManifest.web_accessible_resources,
+    generatedManifest.web_accessible_resources
+  );
 });

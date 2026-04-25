@@ -27,6 +27,7 @@
     "https://cp.kuaishou.com/*",
     "https://channels.weixin.qq.com/*",
     "https://weibo.com/*",
+    "https://www.weibo.com/*",
     "https://me.weibo.com/*"
   ],
   "background": {
@@ -42,7 +43,7 @@
     {
       "matches": ["https://creator.douyin.com/*"],
       "js": ["content/douyin-metrics.js", "content/douyin-sync.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     },
     {
       "matches": ["https://creator.xiaohongshu.com/*"],
@@ -68,7 +69,7 @@
       "all_frames": true
     },
     {
-      "matches": ["https://weibo.com/*", "https://me.weibo.com/*"],
+      "matches": ["https://weibo.com/*", "https://www.weibo.com/*", "https://me.weibo.com/*"],
       "js": ["content/weibo-metrics.js", "content/weibo-sync.js"],
       "run_at": "document_start"
     }
@@ -88,7 +89,7 @@
     },
     {
       "resources": ["content/weibo-bridge.js"],
-      "matches": ["https://weibo.com/*", "https://me.weibo.com/*"]
+      "matches": ["https://weibo.com/*", "https://www.weibo.com/*", "https://me.weibo.com/*"]
     }
   ],
   "action": {

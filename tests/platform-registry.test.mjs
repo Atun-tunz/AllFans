@@ -308,19 +308,27 @@ test('Weibo declares account, video, and article entrypoints with page bridge re
   const platform = getPlatformById('weibo');
 
   assert.equal(platform.id, 'weibo');
-  assert.deepEqual(platform.hostPermissions, ['https://weibo.com/*', 'https://me.weibo.com/*']);
+  assert.deepEqual(platform.hostPermissions, [
+    'https://weibo.com/*',
+    'https://www.weibo.com/*',
+    'https://me.weibo.com/*'
+  ]);
   assert.deepEqual(
     platform.syncEntrypoints.map(entrypoint => entrypoint.id),
     ['account', 'videoContent', 'articleContent']
   );
-  assert.equal(platform.syncEntrypoints[0].url, 'https://weibo.com/profile');
+  assert.equal(platform.syncEntrypoints[0].url, 'https://weibo.com/');
   assert.equal(platform.syncEntrypoints[1].url, 'https://me.weibo.com/content/video');
   assert.equal(platform.syncEntrypoints[2].url, 'https://me.weibo.com/content/article');
   assert.deepEqual(platform.expectedSyncScopes, ['account', 'content']);
   assert.deepEqual(platform.webAccessibleResources, [
     {
       resources: ['content/weibo-bridge.js'],
-      matches: ['https://weibo.com/*', 'https://me.weibo.com/*']
+      matches: [
+        'https://weibo.com/*',
+        'https://www.weibo.com/*',
+        'https://me.weibo.com/*'
+      ]
     }
   ]);
   assert.deepEqual(
@@ -333,6 +341,10 @@ test('Weibo declares account, video, and article entrypoints with page bridge re
   );
   assert.equal(
     platform.matchesActiveTab('https://weibo.com/u/9161791838')?.entrypointId,
+    'account'
+  );
+  assert.equal(
+    platform.matchesActiveTab('https://www.weibo.com/u/9161791838')?.entrypointId,
     'account'
   );
   assert.equal(

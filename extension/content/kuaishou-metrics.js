@@ -9,7 +9,6 @@
       displayName: '',
       scannedItemCount: 0,
       responseCount: 0,
-      hasMore: false,
       total: 0
     };
   }
@@ -105,7 +104,6 @@
       itemsById: { ...state.itemsById },
       displayName: state.displayName || '',
       responseCount: state.responseCount + 1,
-      hasMore: false,
       total: normalizeMetricValue(response?.data?.total)
     };
 

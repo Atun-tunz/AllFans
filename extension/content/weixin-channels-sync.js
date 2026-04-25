@@ -20,6 +20,18 @@
     videoContent: '/platform/post/list',
     imageTextContent: '/platform/post/finderNewLifePostList'
   };
+  const ROLE_TO_KIND = {
+    videoContent: 'video',
+    imageTextContent: 'imageText'
+  };
+  const KIND_TO_ROLE = {
+    video: 'videoContent',
+    imageText: 'imageTextContent'
+  };
+  const ROLE_COLLECTION_ORDER = {
+    videoContent: ['video', 'imageText'],
+    imageTextContent: ['imageText', 'video']
+  };
   const SHARED_CONTENT_MENU_TEXT = [
     '\u5185\u5bb9\u7ba1\u7406',
     '\u4f5c\u54c1\u7ba1\u7406',
@@ -121,39 +133,15 @@
   }
 
   function getContentKindForRole(role) {
-    if (role === 'videoContent') {
-      return 'video';
-    }
-
-    if (role === 'imageTextContent') {
-      return 'imageText';
-    }
-
-    return null;
+    return ROLE_TO_KIND[role] || null;
   }
 
   function getRoleForContentKind(kind) {
-    if (kind === 'video') {
-      return 'videoContent';
-    }
-
-    if (kind === 'imageText') {
-      return 'imageTextContent';
-    }
-
-    return null;
+    return KIND_TO_ROLE[kind] || null;
   }
 
   function getContentKindsForRole(role) {
-    if (role === 'videoContent') {
-      return ['video', 'imageText'];
-    }
-
-    if (role === 'imageTextContent') {
-      return ['imageText', 'video'];
-    }
-
-    return [];
+    return ROLE_COLLECTION_ORDER[role] || [];
   }
 
   function isSupportedPage() {
@@ -531,12 +519,17 @@
     throw new Error('\u5fae\u4fe1\u89c6\u9891\u53f7\u9875\u9762\u52a0\u8f7d\u8d85\u65f6\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002');
   }
 
-  function requestAccountFromBridge() {
+  function requestBridgePayload({
+    requestIdPrefix,
+    message,
+    timeoutMessage,
+    includeChildFrames = false
+  }) {
     return new Promise((resolve, reject) => {
-      const requestId = `weixin-channels-account-${Date.now()}-${bridgeRequestId++}`;
+      const requestId = `${requestIdPrefix}-${Date.now()}-${bridgeRequestId++}`;
       const timeoutId = setTimeout(() => {
         pendingBridgeRequests.delete(requestId);
-        reject(new Error('Weixin Channels account bridge request timed out'));
+        reject(new Error(timeoutMessage));
       }, WAIT_OPTIONS.bridgeRequestTimeoutMs);
 
       pendingBridgeRequests.set(requestId, {
@@ -548,38 +541,35 @@
       postBridgeMessage(
         {
           source: BRIDGE_SOURCE,
-          type: BRIDGE_ACCOUNT_FETCH_REQUEST_TYPE,
+          ...message,
           requestId
-        }
+        },
+        { includeChildFrames }
       );
     });
   }
 
+  function requestAccountFromBridge() {
+    return requestBridgePayload({
+      requestIdPrefix: 'weixin-channels-account',
+      message: {
+        type: BRIDGE_ACCOUNT_FETCH_REQUEST_TYPE
+      },
+      timeoutMessage: 'Weixin Channels account bridge request timed out'
+    });
+  }
+
   function requestPostListFromBridge(kind, pageRequest = null) {
-    return new Promise((resolve, reject) => {
-      const requestId = `weixin-channels-post-${kind}-${Date.now()}-${bridgeRequestId++}`;
-      const timeoutId = setTimeout(() => {
-        pendingBridgeRequests.delete(requestId);
-        reject(new Error('Weixin Channels post list bridge request timed out'));
-      }, WAIT_OPTIONS.bridgeRequestTimeoutMs);
-
-      pendingBridgeRequests.set(requestId, {
-        resolve,
-        reject,
-        timeoutId
-      });
-
-      postBridgeMessage(
-        {
-          source: BRIDGE_SOURCE,
-          type: BRIDGE_POST_LIST_FETCH_REQUEST_TYPE,
-          requestId,
-          kind,
-          pageRequest,
-          allowMissingTemplate: true
-        },
-        { includeChildFrames: true }
-      );
+    return requestBridgePayload({
+      requestIdPrefix: `weixin-channels-post-${kind}`,
+      message: {
+        type: BRIDGE_POST_LIST_FETCH_REQUEST_TYPE,
+        kind,
+        pageRequest,
+        allowMissingTemplate: true
+      },
+      timeoutMessage: 'Weixin Channels post list bridge request timed out',
+      includeChildFrames: true
     });
   }
 
@@ -596,12 +586,13 @@
     );
   }
 
-  async function waitForAccountSnapshot(metrics) {
+  async function waitForReusableSnapshot(getSnapshot, isReusable) {
     const startedAt = Date.now();
 
     while (Date.now() - startedAt < WAIT_OPTIONS.snapshotTimeoutMs) {
-      if (metrics.hasReusableAccountSnapshot(pendingAccountSnapshot)) {
-        return pendingAccountSnapshot;
+      const snapshot = getSnapshot();
+      if (isReusable(snapshot)) {
+        return snapshot;
       }
 
       await delay(WAIT_OPTIONS.pageReadyIntervalMs);
@@ -610,19 +601,18 @@
     return null;
   }
 
+  async function waitForAccountSnapshot(metrics) {
+    return waitForReusableSnapshot(
+      () => pendingAccountSnapshot,
+      snapshot => metrics.hasReusableAccountSnapshot(snapshot)
+    );
+  }
+
   async function waitForPostListSnapshot(metrics, kind) {
-    const startedAt = Date.now();
-
-    while (Date.now() - startedAt < WAIT_OPTIONS.snapshotTimeoutMs) {
-      const snapshot = pendingPostListSnapshots[kind];
-      if (metrics.hasReusablePostListSnapshot(snapshot, kind)) {
-        return snapshot;
-      }
-
-      await delay(WAIT_OPTIONS.pageReadyIntervalMs);
-    }
-
-    return null;
+    return waitForReusableSnapshot(
+      () => pendingPostListSnapshots[kind],
+      snapshot => metrics.hasReusablePostListSnapshot(snapshot, kind)
+    );
   }
 
   async function collectAccountInfo(metrics, timestamp) {

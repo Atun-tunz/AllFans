@@ -1,4 +1,5 @@
 import './bilibili-metrics.test.mjs';
+import './build-assets.test.mjs';
 import './data-model.test.mjs';
 import './douyin-metrics.test.mjs';
 import './kuaishou-metrics.test.mjs';

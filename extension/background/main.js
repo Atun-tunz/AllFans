@@ -350,15 +350,76 @@ function shouldRetryEntrypointSync(entrypoint, error) {
   );
 }
 
+function isWeiboProfileTabUrl(url) {
+  try {
+    const target = new URL(String(url));
+    return (
+      ['weibo.com', 'www.weibo.com'].includes(target.hostname) &&
+      (target.pathname.startsWith('/u/') || target.pathname.startsWith('/p/'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function createEntrypointUrlMatcher(platform, entrypoint) {
+  return url => {
+    if (!url) {
+      return false;
+    }
+
+    if (platform?.matchesActiveTab?.(url)?.entrypointId === entrypoint?.id) {
+      return true;
+    }
+
+    return Boolean(entrypoint?.urlPrefix && url.startsWith(entrypoint.urlPrefix));
+  };
+}
+
+async function ensureWeiboAccountProfilePage({ platform, entrypoint, tabId, openSyncOptions }) {
+  if (platform?.id !== 'weibo' || entrypoint?.id !== 'account') {
+    return;
+  }
+
+  const latestTab = await BrowserApi.tabs.get(tabId);
+  if (isWeiboProfileTabUrl(latestTab.url)) {
+    return;
+  }
+
+  const response = await sendMessageWithRetry(
+    tabId,
+    {
+      type: MESSAGE_TYPES.GET_ACCOUNT_PROFILE_URL,
+      platformId: platform.id
+    },
+    openSyncOptions
+  );
+  const profileUrl = response?.success ? response.url || null : null;
+  if (!profileUrl || profileUrl === latestTab.url) {
+    return;
+  }
+
+  await BrowserApi.tabs.update(tabId, { url: profileUrl });
+  await waitForTabReady(tabId, url => isWeiboProfileTabUrl(url), openSyncOptions);
+}
+
 async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipPush = false }) {
   const openSyncOptions = resolveOpenSyncOptions(platform);
-  const tab = await openOrActivateTargetTab(entrypoint.url, entrypoint.urlPrefix);
-  await waitForTabReady(tab.id, entrypoint.urlPrefix, openSyncOptions);
+  const matchesEntrypointUrl = createEntrypointUrlMatcher(platform, entrypoint);
+  const tab = await openOrActivateTargetTab(entrypoint.url, matchesEntrypointUrl);
+  await waitForTabReady(tab.id, matchesEntrypointUrl, openSyncOptions);
 
   const latestTab = await BrowserApi.tabs.get(tab.id);
-  if (!latestTab.url?.startsWith(entrypoint.urlPrefix)) {
+  if (!matchesEntrypointUrl(latestTab.url) && !matchesEntrypointUrl(latestTab.pendingUrl)) {
     throw new Error(`${platform.displayName}页面未进入目标后台，可能尚未登录。`);
   }
+
+  await ensureWeiboAccountProfilePage({
+    platform,
+    entrypoint,
+    tabId: tab.id,
+    openSyncOptions
+  });
 
   try {
     return await syncPlatformInTab({
@@ -374,7 +435,7 @@ async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipP
     }
 
     await BrowserApi.tabs.reload(tab.id);
-    await waitForTabReady(tab.id, entrypoint.urlPrefix, openSyncOptions);
+    await waitForTabReady(tab.id, matchesEntrypointUrl, openSyncOptions);
 
     return syncPlatformInTab({
       platformId: platform.id,
@@ -392,106 +453,79 @@ async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush 
     throw new Error(`Unsupported platform "${platformId}".`);
   }
 
-  {
-    const entrypoints = resolvePlatformSyncEntrypoints(platform, entrypointId);
-    const firstEntrypoint = entrypoints[0];
+  const entrypoints = resolvePlatformSyncEntrypoints(platform, entrypointId);
+  const firstEntrypoint = entrypoints[0];
 
-    if (!firstEntrypoint) {
-      throw new Error(`${platform.displayName}没有可用的同步入口。`);
-    }
-
-    if (entrypoints.length === 1) {
-      return openAndSyncSingleEntrypoint({
-        platform,
-        entrypoint: firstEntrypoint,
-        reason,
-        skipPush
-      });
-    }
-
-    const results = [];
-
-    for (const candidate of entrypoints) {
-      try {
-        const result = await openAndSyncSingleEntrypoint({
-          platform,
-          entrypoint: candidate,
-          reason,
-          skipPush: true
-        });
-
-        results.push({
-          entrypointId: candidate.id,
-          success: true,
-          scope: result.scope || null
-        });
-      } catch (error) {
-        results.push({
-          entrypointId: candidate.id,
-          success: false,
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-    }
-
-    const successResults = results.filter(result => result.success);
-    if (successResults.length === 0) {
-      throw new Error(results[0]?.error || `${platform.displayName}同步失败`);
-    }
-
-    const aggregateScope = aggregateSyncScope(successResults);
-    const refreshedData = await StorageManager.getAllData();
-    let pushResult = null;
-    if (!skipPush) {
-      pushResult = await pushSnapshotAndPersistState(
-        [
-          {
-            platformId,
-            entrypointId: null,
-            success: true,
-            reason,
-            scope: aggregateScope
-          }
-        ],
-        refreshedData
-      );
-    }
-
-    return {
-      platformId,
-      entrypointId: null,
-      scope: aggregateScope,
-      status: isPlatformScopeComplete(platform, aggregateScope) ? 'success' : 'partial',
-      results,
-      data: refreshedData.platforms[platformId],
-      pushResult
-    };
-  }
-
-  const entrypoint =
-    platform.syncEntrypoints.find(candidate => candidate.id === entrypointId) ||
-    platform.syncEntrypoints.find(candidate => candidate.id === platform.defaultSyncEntrypointId) ||
-    platform.syncEntrypoints[0];
-
-  if (!entrypoint) {
+  if (!firstEntrypoint) {
     throw new Error(`${platform.displayName}没有可用的同步入口。`);
   }
 
-  const tab = await openOrActivateTargetTab(entrypoint.url, entrypoint.urlPrefix);
-  await waitForTabReady(tab.id, entrypoint.urlPrefix);
-
-  const latestTab = await BrowserApi.tabs.get(tab.id);
-  if (!latestTab.url?.startsWith(entrypoint.urlPrefix)) {
-    throw new Error(`${platform.displayName}页面未进入目标后台，可能尚未登录。`);
+  if (entrypoints.length === 1) {
+    return openAndSyncSingleEntrypoint({
+      platform,
+      entrypoint: firstEntrypoint,
+      reason,
+      skipPush
+    });
   }
 
-  return syncPlatformInTab({
+  const results = [];
+
+  for (const candidate of entrypoints) {
+    try {
+      const result = await openAndSyncSingleEntrypoint({
+        platform,
+        entrypoint: candidate,
+        reason,
+        skipPush: true
+      });
+
+      results.push({
+        entrypointId: candidate.id,
+        success: true,
+        scope: result.scope || null
+      });
+    } catch (error) {
+      results.push({
+        entrypointId: candidate.id,
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  const successResults = results.filter(result => result.success);
+  if (successResults.length === 0) {
+    throw new Error(results[0]?.error || `${platform.displayName}同步失败`);
+  }
+
+  const aggregateScope = aggregateSyncScope(successResults);
+  const refreshedData = await StorageManager.getAllData();
+  let pushResult = null;
+  if (!skipPush) {
+    pushResult = await pushSnapshotAndPersistState(
+      [
+        {
+          platformId,
+          entrypointId: null,
+          success: true,
+          reason,
+          scope: aggregateScope
+        }
+      ],
+      refreshedData
+    );
+  }
+
+  return {
     platformId,
-    entrypointId: entrypoint.id,
-    tabId: tab.id,
-    reason,
-    skipPush
-  });
+    entrypointId: null,
+    scope: aggregateScope,
+    status: isPlatformScopeComplete(platform, aggregateScope) ? 'success' : 'partial',
+    results,
+    data: refreshedData.platforms[platformId],
+    pushResult
+  };
 }
 
 async function syncAllEnabledPlatforms(reason) {
@@ -534,10 +568,10 @@ async function syncAllEnabledPlatforms(reason) {
   };
 }
 
-async function openOrActivateTargetTab(targetUrl, urlPrefix) {
+async function openOrActivateTargetTab(targetUrl, matchesUrl) {
   const tabs = await BrowserApi.tabs.query({ lastFocusedWindow: true });
   const existingTab = tabs.find(
-    tab => tab.url?.startsWith(urlPrefix) || tab.pendingUrl?.startsWith(urlPrefix)
+    tab => matchesUrl(tab.url) || matchesUrl(tab.pendingUrl)
   );
 
   if (existingTab) {
@@ -558,7 +592,7 @@ async function openOrActivateTargetTab(targetUrl, urlPrefix) {
   });
 }
 
-function waitForTabReady(tabId, urlPrefix, options = OPEN_SYNC_OPTIONS) {
+function waitForTabReady(tabId, matchesUrl, options = OPEN_SYNC_OPTIONS) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
     let timeout = null;
@@ -576,7 +610,7 @@ function waitForTabReady(tabId, urlPrefix, options = OPEN_SYNC_OPTIONS) {
         return;
       }
 
-      if (!tab.url?.startsWith(urlPrefix) && !tab.pendingUrl?.startsWith(urlPrefix)) {
+      if (!matchesUrl(tab.url) && !matchesUrl(tab.pendingUrl)) {
         if (changeInfo.status === 'complete') {
           finish(() => reject(new Error('页面未进入目标后台，可能尚未登录。')));
         }
@@ -593,7 +627,7 @@ function waitForTabReady(tabId, urlPrefix, options = OPEN_SYNC_OPTIONS) {
     BrowserApi.tabs
       .get(tabId)
       .then(tab => {
-        if (tab.status === 'complete' && tab.url?.startsWith(urlPrefix)) {
+        if (tab.status === 'complete' && (matchesUrl(tab.url) || matchesUrl(tab.pendingUrl))) {
           finish(resolve);
           return;
         }

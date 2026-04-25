@@ -43,7 +43,7 @@ test('background open-and-sync flow applies platform-specific wait options', () 
   assert.match(script, /function resolveOpenSyncOptions\(platform\)/);
   assert.match(script, /\.\.\.OPEN_SYNC_OPTIONS,[\s\S]*\.\.\.\(platform\?\.syncOptions \|\| \{\}\)/m);
   assert.match(script, /const openSyncOptions = resolveOpenSyncOptions\(platform\);/);
-  assert.match(script, /waitForTabReady\(tab\.id,\s*entrypoint\.urlPrefix,\s*openSyncOptions\)/);
+  assert.match(script, /waitForTabReady\(tab\.id,\s*matchesEntrypointUrl,\s*openSyncOptions\)/);
   assert.match(script, /sendMessageWithRetry\([\s\S]*openSyncOptions[\s\S]*\)/m);
 });
 
@@ -145,7 +145,9 @@ test('kuaishou bridge can replay photo-list requests from page context', () => {
   assert.match(bridge, /ALLFANS_KUAISHOU_FETCH_PAGE_REQUEST/);
   assert.match(bridge, /ALLFANS_KUAISHOU_FETCH_PAGE_RESPONSE/);
   assert.match(bridge, /latestPhotoListRequestTemplate/);
-  assert.match(bridge, /window\.fetch\(url,\s*buildReplayInit\(latestPhotoListRequestTemplate\)\)/);
+  assert.match(bridge, /requestWithTemplate/);
+  assert.match(bridge, /window\.fetch\(url,\s*buildReplayInit\(template\)\)/);
+  assert.match(bridge, /template:\s*latestPhotoListRequestTemplate/);
   assert.match(bridge, /XMLHttpRequest\.prototype\.setRequestHeader/);
 });
 
@@ -158,7 +160,7 @@ test('kuaishou bridge captures and replays home info account requests', () => {
   assert.match(bridge, /ALLFANS_KUAISHOU_FETCH_ACCOUNT_RESPONSE/);
   assert.match(bridge, /latestAccountRequestTemplate/);
   assert.match(bridge, /\/rest\/cp\/creator\/pc\/home\/infoV2/);
-  assert.match(bridge, /window\.fetch\(url,\s*buildReplayInit\(latestAccountRequestTemplate\)\)/);
+  assert.match(bridge, /template:\s*latestAccountRequestTemplate/);
 });
 
 test('kuaishou sync collects account data before content data and returns combined scope', () => {
@@ -334,16 +336,35 @@ test('background marks multi-entrypoint sync successful when the aggregated scop
 test('weibo sync opens explicit video and article manager pages for content capture', () => {
   const platformPath = path.join(process.cwd(), 'extension', 'platforms', 'weibo-platform.js');
   const platform = fs.readFileSync(platformPath, 'utf8');
+  const backgroundPath = path.join(process.cwd(), 'extension', 'background', 'main.js');
+  const background = fs.readFileSync(backgroundPath, 'utf8');
   const syncPath = path.join(process.cwd(), 'extension', 'content', 'weibo-sync.js');
   const sync = fs.readFileSync(syncPath, 'utf8');
 
   assert.match(platform, /expectedSyncScopes:\s*\['account', 'content'\]/);
-  assert.match(platform, /https:\/\/weibo\.com\/profile/);
+  assert.match(platform, /url:\s*'https:\/\/weibo\.com\/'/);
+  assert.match(platform, /https:\/\/www\.weibo\.com\/\*/);
   assert.match(platform, /id:\s*'videoContent'/);
   assert.match(platform, /https:\/\/me\.weibo\.com\/content\/video/);
   assert.match(platform, /id:\s*'articleContent'/);
   assert.match(platform, /https:\/\/me\.weibo\.com\/content\/article/);
   assert.match(platform, /contentStatsLastUpdate/);
+  assert.match(sync, /GET_ACCOUNT_PROFILE_URL/);
+  assert.match(sync, /function isWeiboAccountHost\(hostname\)/);
+  assert.match(sync, /function isWeiboProfileUrl\(url\)/);
+  assert.match(sync, /function readProfileUrlFromGlobals\(\)/);
+  assert.match(sync, /function readProfileUrlFromInlineConfig\(\)/);
+  assert.match(sync, /profile_url/);
+  assert.match(sync, /document\.querySelectorAll\('script'\)/);
+  assert.match(sync, /function resolveCurrentProfileUrl\(\)/);
+  assert.doesNotMatch(sync, /document\.querySelectorAll\('a\[href\]'\)/);
+  assert.doesNotMatch(background, /target\.pathname === '\/profile'/);
+  assert.match(sync, /hostname === 'weibo\.com' \|\| hostname === 'www\.weibo\.com'/);
+  assert.match(background, /platform\?\.matchesActiveTab\?\.\(url\)\?\.entrypointId === entrypoint\?\.id/);
+  assert.match(background, /GET_ACCOUNT_PROFILE_URL/);
+  assert.match(background, /function ensureWeiboAccountProfilePage/);
+  assert.match(background, /BrowserApi\.tabs\.update\(tabId,\s*\{\s*url:\s*profileUrl\s*\}\)/);
+  assert.match(background, /BrowserApi\.tabs\.reload\(tab\.id\);[\s\S]*waitForTabReady\(tab\.id,\s*matchesEntrypointUrl,\s*openSyncOptions\)/m);
   assert.match(sync, /function getContentKindsForRole\(role\)/);
   assert.match(sync, /videoContent/);
   assert.match(sync, /articleContent/);

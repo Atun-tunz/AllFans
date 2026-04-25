@@ -81,11 +81,9 @@
       url,
       method: String(init.method || request?.method || 'GET').toUpperCase(),
       headers: serializeHeaders(init.headers || request?.headers),
-      credentials: init.credentials || request?.credentials || 'include',
       mode: init.mode || request?.mode || 'cors',
       cache: init.cache || request?.cache || 'default',
       redirect: init.redirect || request?.redirect || 'follow',
-      referrer: init.referrer || request?.referrer || window.location.href,
       referrerPolicy:
         init.referrerPolicy || request?.referrerPolicy || 'strict-origin-when-cross-origin'
     };
@@ -112,14 +110,13 @@
   const buildAccountUrl = () =>
     latestAccountRequestTemplate?.url ||
     `${window.location.origin}/api/galaxy/creator/home/personal_info`;
-  const requestPage = async (requestId, page, tab) => {
-    const url = buildPageUrl(page, tab);
-
+  const requestWithTemplate = async ({ requestId, url, template, responseType }) => {
     try {
-      const response = await window.fetch(url, buildReplayInit(latestPrimaryRequestTemplate));
+      const response = await window.fetch(url, buildReplayInit(template));
       const payload = await response.clone().json().catch(() => null);
 
       postFetchResponse({
+        type: responseType,
         requestId,
         url,
         ok: response.ok,
@@ -128,36 +125,27 @@
       });
     } catch (error) {
       postFetchResponse({
+        type: responseType,
         requestId,
         url,
         error: String(error?.message || error || 'Unknown bridge error')
       });
     }
   };
-  const requestAccountInfo = async requestId => {
-    const url = buildAccountUrl();
-
-    try {
-      const response = await window.fetch(url, buildReplayInit(latestAccountRequestTemplate));
-      const payload = await response.clone().json().catch(() => null);
-
-      postFetchResponse({
-        type: ACCOUNT_FETCH_RESPONSE_TYPE,
-        requestId,
-        url,
-        ok: response.ok,
-        status: response.status,
-        payload
-      });
-    } catch (error) {
-      postFetchResponse({
-        type: ACCOUNT_FETCH_RESPONSE_TYPE,
-        requestId,
-        url,
-        error: String(error?.message || error || 'Unknown bridge error')
-      });
-    }
-  };
+  const requestPage = (requestId, page, tab) =>
+    requestWithTemplate({
+      requestId,
+      url: buildPageUrl(page, tab),
+      template: latestPrimaryRequestTemplate,
+      responseType: FETCH_RESPONSE_TYPE
+    });
+  const requestAccountInfo = requestId =>
+    requestWithTemplate({
+      requestId,
+      url: buildAccountUrl(),
+      template: latestAccountRequestTemplate,
+      responseType: ACCOUNT_FETCH_RESPONSE_TYPE
+    });
 
   window.addEventListener('message', event => {
     const payload = event.data;
@@ -226,11 +214,9 @@
             headers: Array.isArray(this.__allfansXiaohongshuHeaders)
               ? this.__allfansXiaohongshuHeaders
               : [],
-            credentials: 'include',
             mode: 'cors',
             cache: 'default',
             redirect: 'follow',
-            referrer: window.location.href,
             referrerPolicy: 'strict-origin-when-cross-origin'
           };
           postPostedPayload(this.__allfansXiaohongshuUrl, JSON.parse(this.responseText));
@@ -245,11 +231,9 @@
           headers: Array.isArray(this.__allfansXiaohongshuHeaders)
             ? this.__allfansXiaohongshuHeaders
             : [],
-          credentials: 'include',
           mode: 'cors',
           cache: 'default',
           redirect: 'follow',
-          referrer: window.location.href,
           referrerPolicy: 'strict-origin-when-cross-origin'
         };
         postAccountPayload(this.__allfansXiaohongshuUrl, JSON.parse(this.responseText));

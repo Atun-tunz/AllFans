@@ -46,7 +46,11 @@
   const isWeiboUrl = url => {
     try {
       const target = new URL(String(url), window.location.href);
-      return target.hostname === 'weibo.com' || target.hostname === 'me.weibo.com';
+      return (
+        target.hostname === 'weibo.com' ||
+        target.hostname === 'www.weibo.com' ||
+        target.hostname === 'me.weibo.com'
+      );
     } catch {
       return false;
     }

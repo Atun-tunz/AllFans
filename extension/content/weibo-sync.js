@@ -3,6 +3,7 @@
 
   const MESSAGE_TYPES = {
     DATA_EXTRACTED: 'DATA_EXTRACTED',
+    GET_ACCOUNT_PROFILE_URL: 'GET_ACCOUNT_PROFILE_URL',
     GET_PLATFORM_DATA: 'GET_PLATFORM_DATA',
     SYNC_PLATFORM: 'SYNC_PLATFORM'
   };
@@ -47,8 +48,74 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  function isWeiboAccountHost(hostname) {
+    return hostname === 'weibo.com' || hostname === 'www.weibo.com';
+  }
+
+  function parseUrl(url) {
+    try {
+      return new URL(String(url), window.location.href);
+    } catch {
+      return null;
+    }
+  }
+
+  function isWeiboProfileUrl(url) {
+    const target = parseUrl(url);
+    if (!target || !isWeiboAccountHost(target.hostname)) {
+      return false;
+    }
+
+    return target.pathname.startsWith('/u/') || target.pathname.startsWith('/p/');
+  }
+
+  function normalizeProfileUrl(value) {
+    const target = parseUrl(value);
+    return target && isWeiboProfileUrl(target.href) ? target.href : null;
+  }
+
+  function decodeJsonStringValue(value) {
+    try {
+      return JSON.parse(`"${value}"`);
+    } catch {
+      return String(value || '').replace(/\\\//g, '/');
+    }
+  }
+
+  function extractProfileUrlFromText(text) {
+    const source = String(text || '');
+    const match =
+      source.match(/"profile_url"\s*:\s*"([^"]+)"/) ||
+      source.match(/'profile_url'\s*:\s*'([^']+)'/) ||
+      source.match(/profile_url\s*:\s*['"]([^'"]+)['"]/);
+
+    return match ? normalizeProfileUrl(decodeJsonStringValue(match[1])) : null;
+  }
+
+  function readProfileUrlFromGlobals() {
+    return normalizeProfileUrl(globalThis.$CONFIG?.user?.profile_url);
+  }
+
+  function readProfileUrlFromInlineConfig() {
+    for (const script of document.querySelectorAll('script')) {
+      const profileUrl = extractProfileUrlFromText(script.textContent);
+      if (profileUrl) {
+        return profileUrl;
+      }
+    }
+    return null;
+  }
+
+  function resolveCurrentProfileUrl() {
+    if (isWeiboProfileUrl(window.location.href)) {
+      return window.location.href;
+    }
+
+    return readProfileUrlFromGlobals() || readProfileUrlFromInlineConfig();
+  }
+
   function getPageRole() {
-    if (window.location.hostname === 'weibo.com') {
+    if (isWeiboAccountHost(window.location.hostname)) {
       return 'account';
     }
 
@@ -510,6 +577,14 @@
   }
 
   getRuntime().runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === MESSAGE_TYPES.GET_ACCOUNT_PROFILE_URL && message?.platformId === PLATFORM) {
+      sendResponse({
+        success: true,
+        url: resolveCurrentProfileUrl()
+      });
+      return false;
+    }
+
     if (message?.type !== MESSAGE_TYPES.SYNC_PLATFORM || message?.platformId !== PLATFORM) {
       return false;
     }

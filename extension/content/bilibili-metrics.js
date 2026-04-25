@@ -57,8 +57,7 @@
           payload.total_share,
           payload.total_fav,
           payload.total_coin
-        ].filter(value => value !== undefined && value !== null).length,
-        source: 'api'
+        ].filter(value => value !== undefined && value !== null).length
       }
     };
   }
@@ -73,7 +72,6 @@
   }
 
   globalThis.AllFansBilibiliMetrics = {
-    METRIC_FIELD_BY_ICON,
     parseCount,
     parseSignedCount,
     getMetricFieldFromClassList,

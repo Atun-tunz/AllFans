@@ -6,11 +6,12 @@ AllFans 是一个跨浏览器扩展，用于汇总查看多平台创作者后台
 
 | 文档 | 说明 |
 |------|------|
-| [design.md](design.md) | 架构设计、目录结构、数据模型、同步链路 |
+| [architecture.md](architecture.md) | 项目架构设计、核心模块、数据流说明 |
+| [developer-guide.md](developer-guide.md) | 开发环境搭建、构建测试、代码规范 |
 | [add-platform-guide.md](add-platform-guide.md) | 新平台接入步骤、数据准备模板、验收清单 |
 | [platform-card-model.md](platform-card-model.md) | popup 平台卡片双模式模型、指标展示规则 |
-| [local-bridge.md](local-bridge.md) | 本地程序对接协议 |
-| [debug-guide.md](debug-guide.md) | 排查指南、常见问题 |
+| [local-bridge.md](local-bridge.md) | 本地桥接功能、数据格式、接口说明 |
+| [debug-guide.md](debug-guide.md) | 常见问题排查、调试工具使用、错误信息说明 |
 
 ## 快速开始
 
@@ -27,7 +28,9 @@ npm run build   # 构建
 - 抖音
 - 小红书
 - 快手
+- 微博
+- 视频号
 
-## 长期保留备忘
+## 相关文档
 
-- [monetization-notes.md](monetization-notes.md) - DO NOT DELETE / 不要删除：盈利方向、Pro 工具和长期商业化备忘。
+- [隐私政策](../privacy-policy.md) - 用户隐私政策说明

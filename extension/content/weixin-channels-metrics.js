@@ -4,6 +4,22 @@
     video: 'video',
     imageText: 'imageText'
   };
+  const ACCOUNT_LIKE_FIELD_KEYS = [
+    'accountLikeCount',
+    'likeCount',
+    'likeCnt',
+    'likedCount',
+    'likedCnt',
+    'praiseCount',
+    'totalLikeCount',
+    'totalLikedCount',
+    'totalLikeCnt',
+    'feedLikeCount',
+    'receiveLikeCount',
+    'receiveLikeCnt',
+    'allLikeCount',
+    'beLikedCount'
+  ];
 
   function normalizeMetricValue(value) {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -386,37 +402,9 @@
   function buildAccountPlatformPatch(response, { updateSource, timestamp } = {}) {
     const finderUser = response?.data?.finderUser || {};
     const data = response?.data || {};
-    const accountLikeCount = readFirstMetric(finderUser, [
-      'accountLikeCount',
-      'likeCount',
-      'likeCnt',
-      'likedCount',
-      'likedCnt',
-      'praiseCount',
-      'totalLikeCount',
-      'totalLikedCount',
-      'totalLikeCnt',
-      'feedLikeCount',
-      'receiveLikeCount',
-      'receiveLikeCnt',
-      'allLikeCount',
-      'beLikedCount'
-    ]) || readFirstMetric(data, [
-      'accountLikeCount',
-      'likeCount',
-      'likeCnt',
-      'likedCount',
-      'likedCnt',
-      'praiseCount',
-      'totalLikeCount',
-      'totalLikedCount',
-      'totalLikeCnt',
-      'feedLikeCount',
-      'receiveLikeCount',
-      'receiveLikeCnt',
-      'allLikeCount',
-      'beLikedCount'
-    ]);
+    const accountLikeCount =
+      readFirstMetric(finderUser, ACCOUNT_LIKE_FIELD_KEYS) ||
+      readFirstMetric(data, ACCOUNT_LIKE_FIELD_KEYS);
 
     return {
       displayName: String(finderUser.nickname || '').trim(),

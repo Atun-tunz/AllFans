@@ -10,7 +10,6 @@ const {
   buildAccountPlatformPatch,
   mergeContentResponse,
   buildContentPlatformPatch,
-  hasSufficientDouyinData,
   hasSufficientDouyinAccountData
 } = loadDouyinMetrics();
 
@@ -94,7 +93,6 @@ test('mergeContentResponse stores all aweme statistics from work list response',
 
   assert.equal(state.responseCount, 1);
   assert.equal(state.scannedItemCount, 2);
-  assert.equal(state.hasMore, false);
   assert.equal(state.total, 3);
   assert.deepEqual(Object.keys(state.itemsById).sort(), ['a', 'b']);
 });
@@ -209,26 +207,6 @@ test('buildContentPlatformPatch aggregates exact totals from aweme statistics', 
   assert.equal(patch.totalWorksCount, 2);
 });
 
-test('hasSufficientDouyinData accepts partial content scans with at least one item', () => {
-  assert.equal(
-    hasSufficientDouyinData({
-      worksCount: 1,
-      playCount: 0,
-      contentStatsExact: true
-    }),
-    true
-  );
-
-  assert.equal(
-    hasSufficientDouyinData({
-      worksCount: 0,
-      playCount: 0,
-      contentStatsExact: false
-    }),
-    false
-  );
-});
-
 test('buildContentPlatformPatch marks exact empty scans as successful zero-work results', () => {
   let state = createContentScanState();
 
@@ -247,17 +225,6 @@ test('buildContentPlatformPatch marks exact empty scans as successful zero-work 
   assert.equal(patch.totalWorksCount, 0);
   assert.equal(patch.scannedItemCount, 0);
   assert.equal(patch.contentStatsExact, true);
-});
-
-test('hasSufficientDouyinData accepts exact empty scans with zero works', () => {
-  assert.equal(
-    hasSufficientDouyinData({
-      worksCount: 0,
-      totalWorksCount: 0,
-      contentStatsExact: true
-    }),
-    true
-  );
 });
 
 test('hasSufficientDouyinAccountData accepts account patches with visible profile data', () => {

@@ -428,7 +428,7 @@
         const state = await collectAllPostedNotes(metrics);
         if (state) {
           const contentPatch = metrics.buildContentPlatformPatch(state, {
-            displayName: data.displayName || getDisplayName(),
+            displayName: data.displayName,
             updateSource: window.location.href,
             timestamp
           });
@@ -448,9 +448,6 @@
         return { data, scope: syncScope };
       }
     }
-
-    await installBridgeScript();
-    bindBridgeListener(metrics);
 
     if (!metrics.hasReusablePostedSnapshot(pendingSnapshot)) {
       pendingSnapshot = null;

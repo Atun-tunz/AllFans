@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { build } from 'esbuild';
 
+import { getStaticAssetPaths } from './lib/build-assets.mjs';
 import { buildManifestForTarget } from './lib/manifest-builder.mjs';
 
 const ROOT = process.cwd();
@@ -45,37 +46,10 @@ async function writeManifest(target, version) {
 
 async function copyStaticAssets(target) {
   const outputRoot = path.join(DIST_ROOT, target);
-  await copyFile(path.join(EXTENSION_ROOT, 'popup', 'index.html'), path.join(outputRoot, 'popup', 'index.html'));
-  await copyFile(path.join(EXTENSION_ROOT, 'popup', 'app.css'), path.join(outputRoot, 'popup', 'app.css'));
-  await copyFile(path.join(EXTENSION_ROOT, 'popup', 'popup.css'), path.join(outputRoot, 'popup', 'popup.css'));
-  await copyFile(path.join(EXTENSION_ROOT, 'popup', 'animations.css'), path.join(outputRoot, 'popup', 'animations.css'));
-  await copyFile(path.join(EXTENSION_ROOT, 'options', 'index.html'), path.join(outputRoot, 'options', 'index.html'));
-  await copyFile(path.join(EXTENSION_ROOT, 'options', 'options.css'), path.join(outputRoot, 'options', 'options.css'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'bilibili-metrics.js'), path.join(outputRoot, 'content', 'bilibili-metrics.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-metrics.js'), path.join(outputRoot, 'content', 'douyin-metrics.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-metrics.js'), path.join(outputRoot, 'content', 'xiaohongshu-metrics.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-bridge.js'), path.join(outputRoot, 'content', 'xiaohongshu-bridge.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-metrics.js'), path.join(outputRoot, 'content', 'kuaishou-metrics.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-bridge.js'), path.join(outputRoot, 'content', 'kuaishou-bridge.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weixin-channels-metrics.js'), path.join(outputRoot, 'content', 'weixin-channels-metrics.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weixin-channels-bridge.js'), path.join(outputRoot, 'content', 'weixin-channels-bridge.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weibo-metrics.js'), path.join(outputRoot, 'content', 'weibo-metrics.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weibo-bridge.js'), path.join(outputRoot, 'content', 'weibo-bridge.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'bilibili-sync.js'), path.join(outputRoot, 'content', 'bilibili-sync.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'douyin-sync.js'), path.join(outputRoot, 'content', 'douyin-sync.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'xiaohongshu-sync.js'), path.join(outputRoot, 'content', 'xiaohongshu-sync.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'kuaishou-sync.js'), path.join(outputRoot, 'content', 'kuaishou-sync.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weixin-channels-sync.js'), path.join(outputRoot, 'content', 'weixin-channels-sync.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'content', 'weibo-sync.js'), path.join(outputRoot, 'content', 'weibo-sync.js'));
-  await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon16.png'), path.join(outputRoot, 'icons', 'icon16.png'));
-  await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon48.png'), path.join(outputRoot, 'icons', 'icon48.png'));
-  await copyFile(path.join(EXTENSION_ROOT, 'icons', 'icon128.png'), path.join(outputRoot, 'icons', 'icon128.png'));
-
-  const platformIcons = ['bilibili-icon.svg', 'douyin-icon.svg', 'xiaohongshu-icon.svg', 'kuaishou-icon.svg', 'weibo-icon.svg'];
-  for (const icon of platformIcons) {
+  for (const assetPath of getStaticAssetPaths()) {
     await copyFile(
-      path.join(EXTENSION_ROOT, 'icons', 'platforms', icon),
-      path.join(outputRoot, 'icons', 'platforms', icon)
+      path.join(EXTENSION_ROOT, assetPath),
+      path.join(outputRoot, assetPath)
     );
   }
 }
