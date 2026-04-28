@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_DASHBOARD_TITLE,
+  DEFAULT_DASHBOARD_MODULE_IDS,
   buildDashboardSnapshot,
   buildDashboardWorkbookXml,
   createDashboardExportPayload,
@@ -148,6 +149,43 @@ test('dashboard svg uses charts instead of platform card grid and supports trans
   assert.doesNotMatch(svg, /PLATFORM 01/);
 });
 
+test('dashboard svg can hide optional export modules', () => {
+  const snapshot = buildDashboardSnapshot(sampleData);
+  const svg = createDashboardSvg(snapshot, {
+    presetId: 'square',
+    moduleIds: ['fanShare']
+  });
+
+  assert.deepEqual(DEFAULT_DASHBOARD_MODULE_IDS, [
+    'hero',
+    'summary',
+    'fanShare',
+    'topPlays',
+    'interactionMix'
+  ]);
+  assert.match(svg, /平台粉丝占比/);
+  assert.doesNotMatch(svg, /当前领跑平台/);
+  assert.doesNotMatch(svg, /总播放/);
+  assert.doesNotMatch(svg, /Top 平台播放/);
+  assert.doesNotMatch(svg, /互动结构/);
+});
+
+test('dashboard svg applies custom theme color and background image', () => {
+  const snapshot = buildDashboardSnapshot(sampleData);
+  const backgroundImage = 'data:image/png;base64,ZmFrZS1pbWFnZQ==';
+  const svg = createDashboardSvg(snapshot, {
+    presetId: 'landscape',
+    themeColor: '#33AAFF',
+    backgroundImage,
+    backgroundImageOpacity: 0.35
+  });
+
+  assert.match(svg, /stop-color="#33AAFF"/);
+  assert.match(svg, new RegExp(`href="${backgroundImage}"`));
+  assert.match(svg, /preserveAspectRatio="xMidYMid slice"/);
+  assert.match(svg, /opacity="0\.35"/);
+});
+
 test('dashboard presets generate distinct layout markers and story uses larger typography', () => {
   const snapshot = buildDashboardSnapshot(sampleData, { title: DEFAULT_DASHBOARD_TITLE });
   const landscapeSvg = createDashboardSvg(snapshot, { presetId: 'landscape' });
@@ -157,8 +195,8 @@ test('dashboard presets generate distinct layout markers and story uses larger t
   assert.notEqual(landscapeSvg, squareSvg);
   assert.notEqual(squareSvg, storySvg);
   assert.match(landscapeSvg, /平台粉丝占比/);
-  assert.match(squareSvg, /方版布局/);
-  assert.match(storySvg, /竖版布局/);
+  assert.doesNotMatch(squareSvg, /方版布局/);
+  assert.doesNotMatch(storySvg, /竖版布局/);
   assert.match(storySvg, /font-size="72"/);
 });
 

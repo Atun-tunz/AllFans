@@ -103,6 +103,34 @@
             <input id="dashboardTitleInput" type="text" maxlength="24" placeholder="全平台经营总览">
           </label>
 
+          <div class="dashboard-module-card">
+            <span class="meta-label">导出模块</span>
+            <div class="dashboard-module-grid" id="dashboardModuleControls">
+              <label><input type="checkbox" data-dashboard-module="hero" checked>领跑平台</label>
+              <label><input type="checkbox" data-dashboard-module="summary" checked>指标卡片</label>
+              <label><input type="checkbox" data-dashboard-module="fanShare" checked>粉丝占比</label>
+              <label><input type="checkbox" data-dashboard-module="topPlays" checked>播放排行</label>
+              <label><input type="checkbox" data-dashboard-module="interactionMix" checked>互动结构</label>
+            </div>
+          </div>
+
+          <div class="dashboard-theme-card">
+            <label class="theme-color-control">
+              <span class="meta-label">主题颜色</span>
+              <input id="dashboardThemeColorInput" type="color" value="#FFBE82">
+            </label>
+            <label class="theme-file-control">
+              <span class="meta-label">背景图片</span>
+              <input id="dashboardBackgroundImageInput" type="file" accept="image/*">
+              <span id="dashboardBackgroundRatioHint" class="theme-hint">建议 16:9 背景图，已自动铺满并居中裁切</span>
+            </label>
+            <label class="theme-opacity-control">
+              <span class="meta-label">背景透明度 <strong id="dashboardBackgroundOpacityValue">58%</strong></span>
+              <input id="dashboardBackgroundOpacityInput" type="range" min="0" max="100" step="5" value="58">
+            </label>
+            <button id="clearDashboardBackgroundBtn" class="mini-button" type="button">清除背景图</button>
+          </div>
+
           <label class="dashboard-option-card">
             <input id="transparentBackgroundToggle" type="checkbox">
             <span class="toggle-copy">
@@ -150,7 +178,8 @@
         <div id="platformInsightList" class="platform-insight-grid"></div>
       </section>
 
-      <section class="options-panel">
+      <section class="settings-layout">
+      <section class="options-panel platform-settings-panel">
         <div class="panel-head">
           <div>
             <p class="options-kicker">Platforms</p>
@@ -166,7 +195,7 @@
         <div id="platformSettingsList"></div>
       </section>
 
-      <section class="options-panel">
+      <section class="options-panel system-settings-panel">
         <div class="panel-head">
           <div>
             <p class="options-kicker">System</p>
@@ -204,6 +233,7 @@
         </label>
 
         <div class="bridge-status" id="localBridgeStatus"></div>
+      </section>
       </section>
     </main>
 

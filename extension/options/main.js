@@ -5,6 +5,8 @@ import { createFeedbackController } from '../popup/feedback.js';
 import { formatNumber, formatTime } from '../popup/formatters.js';
 import {
   DEFAULT_DASHBOARD_TITLE,
+  DEFAULT_DASHBOARD_MODULE_IDS,
+  DEFAULT_DASHBOARD_THEME_COLOR,
   buildDashboardSnapshot,
   buildDashboardWorkbookXml,
   createDashboardExportPayload,
@@ -14,11 +16,41 @@ import {
 
 const DASHBOARD_TITLE_STORAGE_KEY = 'allfans.dashboardTitle';
 const DASHBOARD_BG_STORAGE_KEY = 'allfans.dashboardBackgroundMode';
+const DASHBOARD_MODULES_STORAGE_KEY = 'allfans.dashboardModules';
+const DASHBOARD_THEME_COLOR_STORAGE_KEY = 'allfans.dashboardThemeColor';
+const DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY = 'allfans.dashboardBackgroundImage';
+const DASHBOARD_BACKGROUND_OPACITY_STORAGE_KEY = 'allfans.dashboardBackgroundOpacity';
 const PRESET_HINTS = {
   landscape: '适合横向汇报页、投屏页和网页头图',
   square: '适合社媒封面、朋友圈和文档插图',
   story: '适合竖屏长图、海报和移动端分享'
 };
+const BACKGROUND_RATIO_HINTS = {
+  landscape: '建议 16:9 背景图，已自动铺满并居中裁切',
+  square: '建议 1:1 背景图，已自动铺满并居中裁切',
+  story: '建议 9:16 背景图，已自动铺满并居中裁切'
+};
+
+const INSIGHT_CHARTS = [
+  {
+    key: 'fanShare',
+    title: '粉丝占比',
+    subtitle: '平台规模分布',
+    valueFormatter: item => `${item.percent}%`
+  },
+  {
+    key: 'topPlays',
+    title: '播放排行',
+    subtitle: 'Top 5 平台表现',
+    valueFormatter: item => formatNumber(item.value)
+  },
+  {
+    key: 'interactionMix',
+    title: '互动结构',
+    subtitle: '点赞、评论、转发等总量',
+    valueFormatter: item => formatNumber(item.value)
+  }
+];
 
 let feedback;
 let latestData = null;
@@ -42,6 +74,34 @@ function bindActions() {
 
   document.getElementById('transparentBackgroundToggle')?.addEventListener('change', event => {
     persistBackgroundMode(event.target.checked ? 'translucent' : 'solid');
+    rerenderPreview();
+  });
+
+  document.querySelectorAll('[data-dashboard-module]').forEach(input => {
+    input.addEventListener('change', () => {
+      persistDashboardModules(readDashboardModulesFromControls());
+      rerenderPreview();
+    });
+  });
+
+  document.getElementById('dashboardThemeColorInput')?.addEventListener('input', event => {
+    persistDashboardThemeColor(event.target.value);
+    rerenderPreview();
+  });
+
+  document.getElementById('dashboardBackgroundOpacityInput')?.addEventListener('input', event => {
+    persistDashboardBackgroundOpacity(Number(event.target.value) / 100);
+    updateDashboardBackgroundOpacityLabel();
+    rerenderPreview();
+  });
+
+  document.getElementById('dashboardBackgroundImageInput')?.addEventListener('change', event => {
+    importDashboardBackgroundImage(event.target.files?.[0]);
+    event.target.value = '';
+  });
+
+  document.getElementById('clearDashboardBackgroundBtn')?.addEventListener('click', () => {
+    localStorage.removeItem(DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY);
     rerenderPreview();
   });
 
@@ -69,6 +129,19 @@ function hydrateDashboardControls() {
   const transparentToggle = document.getElementById('transparentBackgroundToggle');
   if (transparentToggle) {
     transparentToggle.checked = readBackgroundMode() === 'translucent';
+  }
+
+  hydrateDashboardModuleControls();
+
+  const themeColorInput = document.getElementById('dashboardThemeColorInput');
+  if (themeColorInput) {
+    themeColorInput.value = readDashboardThemeColor();
+  }
+
+  const backgroundOpacityInput = document.getElementById('dashboardBackgroundOpacityInput');
+  if (backgroundOpacityInput) {
+    backgroundOpacityInput.value = String(Math.round(readDashboardBackgroundOpacity() * 100));
+    updateDashboardBackgroundOpacityLabel();
   }
 }
 
@@ -103,6 +176,130 @@ function persistBackgroundMode(mode) {
   localStorage.removeItem(DASHBOARD_BG_STORAGE_KEY);
 }
 
+function readDashboardModules() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DASHBOARD_MODULES_STORAGE_KEY) || '[]');
+    const selected = Array.isArray(parsed)
+      ? parsed.filter(moduleId => DEFAULT_DASHBOARD_MODULE_IDS.includes(moduleId))
+      : [];
+
+    return selected.length > 0 ? selected : DEFAULT_DASHBOARD_MODULE_IDS;
+  } catch {
+    return DEFAULT_DASHBOARD_MODULE_IDS;
+  }
+}
+
+function readDashboardModulesFromControls() {
+  const selected = Array.from(document.querySelectorAll('[data-dashboard-module]'))
+    .filter(input => input.checked)
+    .map(input => input.dataset.dashboardModule)
+    .filter(moduleId => DEFAULT_DASHBOARD_MODULE_IDS.includes(moduleId));
+
+  return selected.length > 0 ? selected : DEFAULT_DASHBOARD_MODULE_IDS;
+}
+
+function hydrateDashboardModuleControls() {
+  const selected = new Set(readDashboardModules());
+  document.querySelectorAll('[data-dashboard-module]').forEach(input => {
+    input.checked = selected.has(input.dataset.dashboardModule);
+  });
+}
+
+function persistDashboardModules(moduleIds) {
+  const normalized = moduleIds.filter(moduleId => DEFAULT_DASHBOARD_MODULE_IDS.includes(moduleId));
+
+  if (normalized.length === DEFAULT_DASHBOARD_MODULE_IDS.length) {
+    localStorage.removeItem(DASHBOARD_MODULES_STORAGE_KEY);
+    return;
+  }
+
+  localStorage.setItem(DASHBOARD_MODULES_STORAGE_KEY, JSON.stringify(normalized));
+}
+
+function readDashboardThemeColor() {
+  const storedColor = localStorage.getItem(DASHBOARD_THEME_COLOR_STORAGE_KEY) || '';
+  return /^#[0-9a-fA-F]{6}$/.test(storedColor) ? storedColor : DEFAULT_DASHBOARD_THEME_COLOR;
+}
+
+function persistDashboardThemeColor(color) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(String(color || ''))) {
+    return;
+  }
+
+  if (color.toUpperCase() === DEFAULT_DASHBOARD_THEME_COLOR.toUpperCase()) {
+    localStorage.removeItem(DASHBOARD_THEME_COLOR_STORAGE_KEY);
+    return;
+  }
+
+  localStorage.setItem(DASHBOARD_THEME_COLOR_STORAGE_KEY, color);
+}
+
+function readDashboardBackgroundImage() {
+  const backgroundImage = localStorage.getItem(DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY) || '';
+  return backgroundImage.startsWith('data:image/') ? backgroundImage : '';
+}
+
+function readDashboardBackgroundOpacity() {
+  const storedValue = localStorage.getItem(DASHBOARD_BACKGROUND_OPACITY_STORAGE_KEY);
+  const storedOpacity = storedValue === null ? Number.NaN : Number(storedValue);
+
+  if (!Number.isFinite(storedOpacity)) {
+    return 0.58;
+  }
+
+  return Math.max(0, Math.min(1, storedOpacity));
+}
+
+function persistDashboardBackgroundOpacity(opacity) {
+  const normalizedOpacity = Math.max(0, Math.min(1, Number(opacity)));
+
+  if (!Number.isFinite(normalizedOpacity)) {
+    return;
+  }
+
+  if (normalizedOpacity === 0.58) {
+    localStorage.removeItem(DASHBOARD_BACKGROUND_OPACITY_STORAGE_KEY);
+    return;
+  }
+
+  localStorage.setItem(DASHBOARD_BACKGROUND_OPACITY_STORAGE_KEY, String(normalizedOpacity));
+}
+
+function updateDashboardBackgroundOpacityLabel() {
+  const label = document.getElementById('dashboardBackgroundOpacityValue');
+  if (label) {
+    label.textContent = `${Math.round(readDashboardBackgroundOpacity() * 100)}%`;
+  }
+}
+
+function importDashboardBackgroundImage(file) {
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    feedback.show('请选择图片文件作为背景。', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = String(reader.result || '');
+    if (!result.startsWith('data:image/')) {
+      feedback.show('背景图片读取失败，请换一张图片重试。', 'error');
+      return;
+    }
+
+    localStorage.setItem(DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY, result);
+    rerenderPreview();
+    feedback.show('背景图片已应用到预览和图片导出。', 'success');
+  };
+  reader.onerror = () => {
+    feedback.show('背景图片读取失败，请换一张图片重试。', 'error');
+  };
+  reader.readAsDataURL(file);
+}
+
 function rerenderPreview() {
   if (latestData) {
     renderDashboardPreview(latestData);
@@ -111,6 +308,15 @@ function rerenderPreview() {
 
 function createSnapshot(data) {
   return buildDashboardSnapshot(data, { title: readDashboardTitle() });
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 async function loadData() {
@@ -166,7 +372,7 @@ function renderPlatformInsights(data) {
 
   if (snapshot.platformCards.length === 0) {
     const empty = document.createElement('div');
-    empty.className = 'platform-insight-card';
+    empty.className = 'platform-insight-card is-empty';
     empty.innerHTML = `
       <h3>暂无平台数据</h3>
       <span class="insight-meta">先同步任意平台后，这里会展示平台亮点卡片。</span>
@@ -175,12 +381,22 @@ function renderPlatformInsights(data) {
     return;
   }
 
+  const chartPanel = document.createElement('div');
+  chartPanel.className = 'platform-chart-grid';
+  chartPanel.innerHTML = INSIGHT_CHARTS.map(chartConfig =>
+    renderInsightChart(snapshot.charts[chartConfig.key], chartConfig)
+  ).join('');
+  container.appendChild(chartPanel);
+
   for (const card of snapshot.platformCards) {
     const element = document.createElement('article');
     element.className = 'platform-insight-card';
     element.innerHTML = `
-      <h3>${card.title}</h3>
-      <span class="insight-account">${card.displayName}</span>
+      <div class="insight-card-head">
+        <h3>${escapeHtml(card.title)}</h3>
+        <span class="insight-share">${card.share}%</span>
+      </div>
+      <span class="insight-account">${escapeHtml(card.displayName)}</span>
       <div class="insight-metrics">
         <span><strong>粉丝</strong><strong>${formatNumber(card.metrics.fans)}</strong></span>
         <span><strong>播放</strong><strong>${formatNumber(card.metrics.playCount)}</strong></span>
@@ -190,6 +406,38 @@ function renderPlatformInsights(data) {
     `;
     container.appendChild(element);
   }
+}
+
+function renderInsightChart(items, { title, subtitle, valueFormatter }) {
+  const chartItems = Array.isArray(items) ? items.filter(item => item.value > 0).slice(0, 5) : [];
+  const maxValue = Math.max(...chartItems.map(item => item.value), 1);
+  const rows = chartItems.length > 0
+    ? chartItems
+        .map(item => {
+          const width = Math.max(4, Math.round((item.value / maxValue) * 100));
+
+          return `
+            <div class="platform-chart-row">
+              <span class="chart-name">${escapeHtml(item.label)}</span>
+              <span class="chart-track" aria-hidden="true">
+                <span class="chart-fill" style="width: ${width}%; background: ${item.color};"></span>
+              </span>
+              <strong>${escapeHtml(valueFormatter(item))}</strong>
+            </div>
+          `;
+        })
+        .join('')
+    : '<span class="insight-meta">暂无可展示的统计数据</span>';
+
+  return `
+    <article class="platform-chart-card">
+      <div>
+        <h3>${escapeHtml(title)}</h3>
+        <span class="insight-meta">${escapeHtml(subtitle)}</span>
+      </div>
+      <div class="platform-chart-list">${rows}</div>
+    </article>
+  `;
 }
 
 function renderPlatformSettings(data) {
@@ -237,12 +485,20 @@ function renderDashboardPreview(data) {
   const preview = document.getElementById('dashboardPreview');
   preview.innerHTML = createDashboardSvg(snapshot, {
     presetId: currentPresetId,
-    backgroundMode: readBackgroundMode()
+    backgroundMode: readBackgroundMode(),
+    moduleIds: readDashboardModules(),
+    themeColor: readDashboardThemeColor(),
+    backgroundImage: readDashboardBackgroundImage(),
+    backgroundImageOpacity: readDashboardBackgroundOpacity()
   });
 
   document.getElementById('dashboardPresetLabel').textContent = preset.label;
   document.getElementById('dashboardPresetSize').textContent = `${preset.width} × ${preset.height}`;
   document.getElementById('dashboardPresetHint').textContent = PRESET_HINTS[preset.id];
+  const backgroundRatioHint = document.getElementById('dashboardBackgroundRatioHint');
+  if (backgroundRatioHint) {
+    backgroundRatioHint.textContent = BACKGROUND_RATIO_HINTS[preset.id];
+  }
   preview.style.aspectRatio = `${preset.width} / ${preset.height}`;
   updatePresetButtons();
 }
@@ -287,7 +543,11 @@ async function exportDashboard(format) {
       const backgroundMode = readBackgroundMode();
       const svg = createDashboardSvg(snapshot, {
         presetId: currentPresetId,
-        backgroundMode
+        backgroundMode,
+        moduleIds: readDashboardModules(),
+        themeColor: readDashboardThemeColor(),
+        backgroundImage: readDashboardBackgroundImage(),
+        backgroundImageOpacity: readDashboardBackgroundOpacity()
       });
       const filename = `allfans-dashboard-${preset.id}-${timestamp}.${format === 'jpg' ? 'jpg' : format}`;
 
