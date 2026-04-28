@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AllFans 设置中心</title>
+  <title>AllFans 数据展厅</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -11,13 +11,15 @@
     <div class="options-noise"></div>
 
     <header class="options-hero">
-      <p class="options-kicker">AllFans Control Room</p>
-      <div class="options-hero-row">
-        <div>
-          <h1>设置中心</h1>
-          <p class="options-hero-subtitle">调整同步偏好，管理平台策略</p>
-        </div>
-        <button id="refreshOptionsBtn" class="ghost-button" type="button">刷新状态</button>
+      <div class="hero-copy">
+        <p class="options-kicker">AllFans Data Studio</p>
+        <h1>数据展厅与导出工作台</h1>
+        <p class="options-hero-subtitle">
+          在这里调整展示标题、切换画布比例，并导出图片或结构化数据文件。
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="refreshOptionsBtn" class="ghost-button" type="button">刷新数据</button>
       </div>
     </header>
 
@@ -26,17 +28,128 @@
         <div class="panel-head">
           <div>
             <p class="options-kicker">Overview</p>
-            <h2>同步概况</h2>
+            <h2>全局指标</h2>
+          </div>
+          <div class="hero-platform-card">
+            <span class="hero-platform-label">当前领跑平台</span>
+            <strong id="heroPlatformName">等待同步</strong>
+            <span id="heroPlatformMeta">同步后自动识别</span>
           </div>
         </div>
+
         <div class="overview-grid">
           <div class="overview-card">
-            <span class="overview-label">启用平台</span>
+            <span class="overview-label">总粉丝</span>
+            <strong class="overview-value" id="overviewTotalFans">0</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-label">总播放</span>
+            <strong class="overview-value" id="overviewTotalPlayCount">0</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-label">总点赞</span>
+            <strong class="overview-value" id="overviewTotalLikeCount">0</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-label">已启用平台</span>
             <strong class="overview-value" id="enabledPlatformCount">0</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-label">已开启汇总</span>
+            <strong class="overview-value" id="summaryPlatformCount">0</strong>
+          </div>
+          <div class="overview-card">
+            <span class="overview-label">最近同步</span>
+            <strong class="overview-value is-compact" id="overviewLastUpdate">等待同步</strong>
           </div>
         </div>
       </section>
-      
+
+      <section class="dashboard-layout">
+        <section class="options-panel workbench-panel">
+          <div class="panel-head">
+            <div>
+              <p class="options-kicker">Board Studio</p>
+              <h2>看板预览</h2>
+            </div>
+            <div class="preset-switcher">
+              <button class="preset-chip is-active" type="button" data-preset="landscape">横版 16:9</button>
+              <button class="preset-chip" type="button" data-preset="square">方版 1:1</button>
+              <button class="preset-chip" type="button" data-preset="story">竖版 9:16</button>
+            </div>
+          </div>
+
+          <div class="dashboard-preview-shell">
+            <div id="dashboardPreview" class="dashboard-preview" aria-live="polite"></div>
+          </div>
+
+          <div class="dashboard-meta">
+            <div class="meta-block">
+              <span class="meta-label">当前画布</span>
+              <strong id="dashboardPresetLabel">横版 16:9</strong>
+            </div>
+            <div class="meta-block">
+              <span class="meta-label">导出尺寸</span>
+              <strong id="dashboardPresetSize">1600 × 900</strong>
+            </div>
+            <div class="meta-block">
+              <span class="meta-label">适用场景</span>
+              <strong id="dashboardPresetHint">适合汇报封面、网页横幅、投屏展示</strong>
+            </div>
+          </div>
+
+          <label class="dashboard-title-card">
+            <span class="meta-label">图片标题</span>
+            <input id="dashboardTitleInput" type="text" maxlength="24" placeholder="全平台经营总览">
+          </label>
+
+          <label class="dashboard-option-card">
+            <input id="transparentBackgroundToggle" type="checkbox">
+            <span class="toggle-copy">
+              <strong>半透明背景</strong>
+              <span>导出 PNG 和 SVG 时保留更轻的背景层，便于叠加到其他版式中。</span>
+            </span>
+          </label>
+        </section>
+
+        <aside class="options-panel export-panel">
+          <div class="panel-head">
+            <div>
+              <p class="options-kicker">Export</p>
+              <h2>导出图片</h2>
+            </div>
+          </div>
+
+          <p class="export-copy">
+            图片导出适合直接分发，JSON 适合给脚本或接口消费，Excel 适合继续筛选、汇报和整理。
+          </p>
+
+          <div class="export-button-group">
+            <button class="export-button" type="button" data-export-format="png">导出 PNG</button>
+            <button class="export-button" type="button" data-export-format="jpg">导出 JPG</button>
+            <button class="export-button" type="button" data-export-format="svg">导出 SVG</button>
+            <button class="export-button is-secondary" type="button" data-export-format="json">导出 JSON</button>
+            <button class="export-button is-secondary" type="button" data-export-format="excel">导出 Excel</button>
+          </div>
+
+          <div class="export-note-card">
+            <span class="meta-label">导出说明</span>
+            <strong>所有导出均在本地生成，不上传数据。</strong>
+            <span>SVG 保留矢量结构，Excel 导出为可直接打开的表格文件。</span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="options-panel">
+        <div class="panel-head">
+          <div>
+            <p class="options-kicker">Platform Radar</p>
+            <h2>平台亮点</h2>
+          </div>
+        </div>
+        <div id="platformInsightList" class="platform-insight-grid"></div>
+      </section>
+
       <section class="options-panel">
         <div class="panel-head">
           <div>
@@ -53,49 +166,43 @@
         <div id="platformSettingsList"></div>
       </section>
 
-      <section class="options-panel" hidden>
+      <section class="options-panel">
         <div class="panel-head">
           <div>
-            <p class="options-kicker">Switches</p>
-            <h2>基础开关</h2>
+            <p class="options-kicker">System</p>
+            <h2>运行设置</h2>
           </div>
         </div>
+
         <div class="toggle-grid">
           <label class="toggle-card">
             <input type="checkbox" id="autoUpdateSetting">
             <span class="toggle-copy">
               <strong>每日自动同步</strong>
-              <span>浏览器运行时按日触发全部已开启平台同步。</span>
+              <span>浏览器运行时按日触发全部已开启平台的同步任务。</span>
             </span>
           </label>
           <label class="toggle-card">
             <input type="checkbox" id="externalApiEnabledSetting">
             <span class="toggle-copy">
-              <strong>允许本地页面只读访问</strong>
-              <span>开放当前缓存给本地面板或脚本读取，不允许远程写入。</span>
+              <strong>允许本地只读访问</strong>
+              <span>将缓存中的汇总数据开放给本机面板或脚本读取，不允许远程写入。</span>
             </span>
           </label>
           <label class="toggle-card">
             <input type="checkbox" id="localBridgeEnabledSetting">
             <span class="toggle-copy">
               <strong>启用本地桥接</strong>
-              <span>把最新快照主动推送到本地服务端口。</span>
+              <span>把最新快照主动推送到本地服务端口，方便二次消费。</span>
             </span>
           </label>
         </div>
+
         <label class="field-card">
           <span class="field-label">本地桥接地址</span>
           <input type="text" id="localBridgeEndpointSetting" spellcheck="false" placeholder="http://127.0.0.1:8765">
         </label>
-      </section>
 
-      <section class="options-panel" hidden>
-        <div class="panel-head">
-          <div>
-            <p class="options-kicker">Bridge</p>
-            <h2>本地桥状态</h2>
-          </div>
-        </div>
         <div class="bridge-status" id="localBridgeStatus"></div>
       </section>
     </main>
