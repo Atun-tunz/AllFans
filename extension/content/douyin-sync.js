@@ -10,18 +10,21 @@
 
   const BRIDGE_SOURCE = 'allfans-douyin-bridge';
   const BRIDGE_EVENT_TYPE = 'ALLFANS_DOUYIN_WORK_LIST_RESPONSE';
+  const BRIDGE_FETCH_REQUEST_TYPE = 'ALLFANS_DOUYIN_FETCH_PAGE_REQUEST';
+  const BRIDGE_FETCH_RESPONSE_TYPE = 'ALLFANS_DOUYIN_FETCH_PAGE_RESPONSE';
   const PLATFORM = 'douyin';
   const HOME_PATH_PREFIX = '/creator-micro/home';
   const MANAGE_PATH_PREFIX = '/creator-micro/content/manage';
   const ACCOUNT_INFO_URL = 'https://creator.douyin.com/web/api/media/user/info/';
   const WAIT_OPTIONS = {
-    timeoutMs: 30000,
+    timeoutMs: 60000,
     intervalMs: 300,
     maxPages: 50
   };
 
   let bridgeBound = false;
   let pendingSnapshot = null;
+  const pendingBridgeRequests = new Map();
   let activeScanPromise = null;
 
   function getRuntime() {
@@ -54,68 +57,21 @@
   }
 
   function installBridgeScript() {
-    if (document.getElementById('allfans-douyin-bridge')) {
+    const existing = document.getElementById('allfans-douyin-bridge');
+    if (existing) {
+      existing.remove();
+    }
+
+    if (!(document.documentElement || document.head || document.body)) {
       return;
     }
 
+    const runtime = getRuntime();
     const script = document.createElement('script');
     script.id = 'allfans-douyin-bridge';
-    script.textContent = `(() => {
-      if (window.__allfansDouyinBridgeInstalled) return;
-      window.__allfansDouyinBridgeInstalled = true;
-
-      const SOURCE = '${BRIDGE_SOURCE}';
-      const EVENT_TYPE = '${BRIDGE_EVENT_TYPE}';
-      const MATCHER = '/janus/douyin/creator/pc/work_list';
-
-      const isMatch = url => typeof url === 'string' && url.includes(MATCHER);
-      const postPayload = (url, payload) => {
-        window.postMessage({ source: SOURCE, type: EVENT_TYPE, url, payload }, '*');
-      };
-
-      const originalFetch = window.fetch;
-      window.fetch = async function(...args) {
-        const response = await originalFetch.apply(this, args);
-
-        try {
-          const request = args[0];
-          const url =
-            typeof request === 'string'
-              ? request
-              : request && typeof request.url === 'string'
-                ? request.url
-                : '';
-
-          if (isMatch(url)) {
-            response.clone().json().then(payload => postPayload(url, payload)).catch(() => {});
-          }
-        } catch {}
-
-        return response;
-      };
-
-      const originalOpen = XMLHttpRequest.prototype.open;
-      const originalSend = XMLHttpRequest.prototype.send;
-
-      XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-        this.__allfansDouyinUrl = typeof url === 'string' ? url : '';
-        return originalOpen.call(this, method, url, ...rest);
-      };
-
-      XMLHttpRequest.prototype.send = function(...args) {
-        this.addEventListener('load', function() {
-          try {
-            if (!isMatch(this.__allfansDouyinUrl)) return;
-            postPayload(this.__allfansDouyinUrl, JSON.parse(this.responseText));
-          } catch {}
-        });
-
-        return originalSend.apply(this, args);
-      };
-    })();`;
-
+    script.src = runtime.runtime.getURL('content/douyin-bridge.js');
+    script.async = false;
     (document.documentElement || document.head || document.body).appendChild(script);
-    script.remove();
   }
 
   function bindBridgeListener(metrics) {
@@ -126,6 +82,25 @@
     window.addEventListener('message', event => {
       const payload = event.data;
       if (event.source !== window || payload?.source !== BRIDGE_SOURCE) {
+        return;
+      }
+
+      if (payload.type === BRIDGE_FETCH_RESPONSE_TYPE) {
+        const pending = pendingBridgeRequests.get(payload.requestId);
+        if (!pending) {
+          return;
+        }
+
+        pendingBridgeRequests.delete(payload.requestId);
+        if (!payload.ok) {
+          pending.reject(new Error(payload.error || `Douyin work_list request failed with status ${payload.status}`));
+          return;
+        }
+
+        pending.resolve({
+          url: payload.url,
+          response: payload.payload
+        });
         return;
       }
 
@@ -144,6 +119,38 @@
     });
 
     bridgeBound = true;
+  }
+
+  function requestWorkListFromBridge(url) {
+    const requestId = `douyin-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        pendingBridgeRequests.delete(requestId);
+        reject(new Error('Douyin bridge request timed out'));
+      }, WAIT_OPTIONS.timeoutMs);
+
+      pendingBridgeRequests.set(requestId, {
+        resolve(value) {
+          clearTimeout(timeout);
+          resolve(value);
+        },
+        reject(error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      });
+
+      window.postMessage(
+        {
+          source: BRIDGE_SOURCE,
+          type: BRIDGE_FETCH_REQUEST_TYPE,
+          requestId,
+          url
+        },
+        '*'
+      );
+    });
   }
 
   function getKnownWorkListUrls(metrics) {
@@ -166,12 +173,7 @@
 
     for (const url of urls) {
       try {
-        const response = await fetch(url, { credentials: 'include' });
-        if (!response.ok) {
-          continue;
-        }
-
-        const payload = await response.json();
+        const payload = await fetchWorkListPage(url);
         if (!metrics.hasUsableWorkListResponse(payload)) {
           continue;
         }
@@ -182,17 +184,33 @@
         };
         return;
       } catch (error) {
-        console.warn('AllFans: failed to seed Douyin work list request', error);
+        try {
+          const snapshot = await requestWorkListFromBridge(url);
+          if (!metrics.hasUsableWorkListResponse(snapshot.response)) {
+            continue;
+          }
+
+          pendingSnapshot = snapshot;
+          return;
+        } catch (bridgeError) {
+          console.warn('AllFans: failed to seed Douyin work list request', bridgeError || error);
+        }
       }
     }
   }
 
   async function waitForWorkListSnapshot(metrics) {
     const startedAt = Date.now();
+    let bridgeReinstalled = false;
 
     while (Date.now() - startedAt < WAIT_OPTIONS.timeoutMs) {
       if (metrics.hasReusableWorkListSnapshot(pendingSnapshot)) {
         return pendingSnapshot;
+      }
+
+      if (!bridgeReinstalled && Date.now() - startedAt > WAIT_OPTIONS.timeoutMs / 2) {
+        installBridgeScript();
+        bridgeReinstalled = true;
       }
 
       await delay(WAIT_OPTIONS.intervalMs);
@@ -235,7 +253,13 @@
       }
 
       const nextUrl = metrics.buildNextWorkListUrl(requestUrl, currentCursor);
-      const nextResponse = await fetchWorkListPage(nextUrl);
+      let nextResponse;
+      try {
+        nextResponse = await fetchWorkListPage(nextUrl);
+      } catch (error) {
+        const nextSnapshot = await requestWorkListFromBridge(nextUrl);
+        nextResponse = nextSnapshot.response;
+      }
       const previousCount = state.scannedItemCount;
 
       state = metrics.mergeContentResponse(state, nextResponse);
@@ -299,6 +323,7 @@
       updateSource: window.location.href
     };
     let syncScope = 'none';
+    const failures = [];
 
     try {
       const accountPatch = await fetchAccountInfo(metrics, timestamp);
@@ -307,6 +332,7 @@
         syncScope = 'account';
       }
     } catch (error) {
+      failures.push(`account: ${error?.message || error}`);
       console.warn('AllFans: failed to refresh Douyin account info', error);
     }
 
@@ -327,10 +353,15 @@
           })
         );
         syncScope = syncScope === 'account' ? 'both' : 'content';
+      } else {
+        failures.push('content: work_list snapshot was not captured before timeout');
       }
     }
 
     if (syncScope === 'none') {
+      if (failures.length > 0) {
+        throw new Error(`Douyin sync produced no usable data (${failures.join('; ')})`);
+      }
       return null;
     }
 

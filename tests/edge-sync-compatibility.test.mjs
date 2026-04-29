@@ -22,6 +22,28 @@ test('douyin sync reuses a valid captured work list snapshot before clearing it'
   );
 });
 
+test('douyin sync loads a web-accessible bridge script instead of inline page code', () => {
+  const platformPath = path.join(process.cwd(), 'extension', 'platforms', 'douyin-platform.js');
+  const platform = fs.readFileSync(platformPath, 'utf8');
+  const syncPath = path.join(process.cwd(), 'extension', 'content', 'douyin-sync.js');
+  const sync = fs.readFileSync(syncPath, 'utf8');
+  const bridgePath = path.join(process.cwd(), 'extension', 'content', 'douyin-bridge.js');
+  const bridge = fs.readFileSync(bridgePath, 'utf8');
+
+  assert.match(platform, /resources:\s*\['content\/douyin-bridge\.js'\]/);
+  assert.match(platform, /tabLoadTimeoutMs:\s*90000/);
+  assert.match(sync, /runtime\.runtime\.getURL\('content\/douyin-bridge\.js'\)/);
+  assert.match(sync, /timeoutMs:\s*60000/);
+  assert.doesNotMatch(sync, /script\.textContent\s*=/);
+  assert.match(bridge, /ALLFANS_DOUYIN_WORK_LIST_RESPONSE/);
+  assert.match(bridge, /\/janus\/douyin\/creator\/pc\/work_list/);
+  assert.match(bridge, /ALLFANS_DOUYIN_FETCH_PAGE_REQUEST/);
+  assert.match(bridge, /ALLFANS_DOUYIN_FETCH_PAGE_RESPONSE/);
+  assert.match(bridge, /latestWorkListRequestTemplate/);
+  assert.match(sync, /function requestWorkListFromBridge\(url\)/);
+  assert.match(sync, /requestWorkListFromBridge\(nextUrl\)/);
+});
+
 test('xiaohongshu sync stops requesting extra pages once scanned works reach the known total', () => {
   const scriptPath = path.join(process.cwd(), 'extension', 'content', 'xiaohongshu-sync.js');
   const script = fs.readFileSync(scriptPath, 'utf8');
@@ -333,6 +355,31 @@ test('background marks multi-entrypoint sync successful when the aggregated scop
   assert.match(script, /status:\s*isPlatformScopeComplete\(platform,\s*aggregateScope\) \? 'success' : 'partial'/);
 });
 
+test('background starts sync-all as a pollable job instead of holding the popup message open', () => {
+  const messagesPath = path.join(process.cwd(), 'extension', 'runtime', 'messages.js');
+  const messages = fs.readFileSync(messagesPath, 'utf8');
+  const scriptPath = path.join(process.cwd(), 'extension', 'background', 'main.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(messages, /GET_SYNC_ALL_STATUS/);
+  assert.match(script, /function startSyncAllEnabledPlatformsJob\(reason\)/);
+  assert.match(script, /sendResponse\(\{\s*success:\s*true,\s*data:\s*getSyncAllJobSnapshot\(job\)\s*\}\)/);
+  assert.match(script, /syncAllEnabledPlatforms\(reason\)\s*\.\s*then/);
+  assert.match(script, /case MESSAGE_TYPES\.GET_SYNC_ALL_STATUS/);
+});
+
+test('background sync-all opens reusable background tabs without stealing popup focus', () => {
+  const scriptPath = path.join(process.cwd(), 'extension', 'background', 'main.js');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(script, /function openOrActivateTargetTab\(targetUrl,\s*matchesUrl,\s*\{\s*active = true\s*\} = \{\}\)/);
+  assert.match(script, /BrowserApi\.tabs\.query\(\{\}\)/);
+  assert.match(script, /if \(active\) \{[\s\S]*BrowserApi\.tabs\.update\(existingTab\.id,\s*\{\s*active:\s*true\s*\}\)/m);
+  assert.match(script, /BrowserApi\.tabs\.create\(\{[\s\S]*active[\s\S]*\}\)/m);
+  assert.match(script, /openInBackground:\s*true/);
+  assert.match(script, /active:\s*!openInBackground/);
+});
+
 test('weibo sync opens explicit video and article manager pages for content capture', () => {
   const platformPath = path.join(process.cwd(), 'extension', 'platforms', 'weibo-platform.js');
   const platform = fs.readFileSync(platformPath, 'utf8');
@@ -362,6 +409,9 @@ test('weibo sync opens explicit video and article manager pages for content capt
   assert.match(sync, /hostname === 'weibo\.com' \|\| hostname === 'www\.weibo\.com'/);
   assert.match(background, /platform\?\.matchesActiveTab\?\.\(url\)\?\.entrypointId === entrypoint\?\.id/);
   assert.match(background, /GET_ACCOUNT_PROFILE_URL/);
+  assert.match(background, /function readWeiboAccountProfileUrlOnce/);
+  assert.match(background, /weiboProfileSettleDelayMs \|\| 8000/);
+  assert.doesNotMatch(background, /while \(Date\.now\(\) - startedAt/);
   assert.match(background, /function ensureWeiboAccountProfilePage/);
   assert.match(background, /BrowserApi\.tabs\.update\(tabId,\s*\{\s*url:\s*profileUrl\s*\}\)/);
   assert.match(background, /BrowserApi\.tabs\.reload\(tab\.id\);[\s\S]*waitForTabReady\(tab\.id,\s*matchesEntrypointUrl,\s*openSyncOptions\)/m);

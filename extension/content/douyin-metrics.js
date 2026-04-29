@@ -30,7 +30,7 @@
   }
 
   function buildNextWorkListUrl(url, nextCursor) {
-    const target = new URL(String(url));
+    const target = new URL(String(url), globalThis.location?.origin || 'https://creator.douyin.com');
     target.searchParams.set('max_cursor', String(nextCursor));
     return target.toString();
   }

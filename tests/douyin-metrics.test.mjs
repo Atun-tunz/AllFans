@@ -38,6 +38,18 @@ test('buildNextWorkListUrl updates max_cursor while preserving other query param
   );
 });
 
+test('buildNextWorkListUrl accepts relative work-list URLs captured from XHR', () => {
+  const nextUrl = buildNextWorkListUrl(
+    '/janus/douyin/creator/pc/work_list?scene=star_atlas&status=0&count=12&max_cursor=0&aid=1128',
+    1759228221000
+  );
+
+  assert.equal(
+    nextUrl,
+    'https://creator.douyin.com/janus/douyin/creator/pc/work_list?scene=star_atlas&status=0&count=12&max_cursor=1759228221000&aid=1128'
+  );
+});
+
 test('buildAccountPlatformPatch maps account overview response with nickname priority', () => {
   const patch = buildAccountPlatformPatch(
     {

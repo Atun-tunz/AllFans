@@ -13,6 +13,12 @@ export const weiboPlatform = {
   contentScripts: [
     {
       matches: ['https://weibo.com/*', 'https://www.weibo.com/*', 'https://me.weibo.com/*'],
+      js: ['content/weibo-bridge.js'],
+      runAt: 'document_start',
+      world: 'MAIN'
+    },
+    {
+      matches: ['https://weibo.com/*', 'https://www.weibo.com/*', 'https://me.weibo.com/*'],
       js: ['content/weibo-metrics.js', 'content/weibo-sync.js'],
       runAt: 'document_start'
     }

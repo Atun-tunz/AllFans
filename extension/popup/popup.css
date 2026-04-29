@@ -72,6 +72,26 @@ body {
   padding: 18px 18px 10px;
 }
 
+.hero-options-link {
+  appearance: none;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hero-options-link:focus-visible {
+  outline: 2px solid rgba(255, 209, 102, 0.42);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
 .eyebrow,
 .platform-kicker,
 .update-label {

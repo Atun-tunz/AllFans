@@ -3,6 +3,7 @@ import { platformRegistry } from '../runtime/platform-registry.js';
 
 export const DEFAULT_DASHBOARD_TITLE = '全平台经营总览';
 export const DEFAULT_DASHBOARD_MODULE_IDS = [
+  'account',
   'hero',
   'summary',
   'fanShare',
@@ -13,8 +14,16 @@ export const DEFAULT_DASHBOARD_THEME_COLOR = '#FFBE82';
 
 const DASHBOARD_PRESETS = [
   { id: 'landscape', label: '横版 16:9', width: 1600, height: 900 },
+  { id: 'fhd', label: '1080p 16:9', width: 1920, height: 1080 },
+  { id: 'qhd', label: '2K 16:9', width: 2560, height: 1440 },
+  { id: 'uhd', label: '4K 16:9', width: 3840, height: 2160 },
   { id: 'square', label: '方版 1:1', width: 1200, height: 1200 },
-  { id: 'story', label: '竖版 9:16', width: 1080, height: 1920 }
+  { id: 'square-1080', label: '方版 1080', width: 1080, height: 1080 },
+  { id: 'square-2k', label: '方版 2K', width: 2048, height: 2048 },
+  { id: 'square-4k', label: '方版 4K', width: 3840, height: 3840 },
+  { id: 'story', label: '竖版 9:16', width: 1080, height: 1920 },
+  { id: 'story-2k', label: '竖版 2K', width: 1440, height: 2560 },
+  { id: 'story-4k', label: '竖版 4K', width: 2160, height: 3840 }
 ];
 
 const PALETTE = ['#FFBE82', '#F28D5C', '#FFDDA8', '#D66C47', '#8A583B', '#E8B68A'];
@@ -226,17 +235,19 @@ function buildDetailTotals(data, orderedPlatforms, includedIds) {
 }
 
 function mergeSmallFanSharePlatforms(platformCards, summary) {
-  const major = platformCards.filter(card => card.metrics.fans > 0 && card.share >= 1).slice(0, 5);
-  const minor = platformCards.filter(card => card.metrics.fans > 0 && card.share < 1);
-  const result = major.map((card, index) => ({
+  const fanCards = platformCards.filter(card => card.metrics.fans > 0);
+  const visibleCards = fanCards.filter(card => card.share >= 1).slice(0, 5);
+  const visibleIds = new Set(visibleCards.map(card => card.id));
+  const groupedCards = fanCards.filter(card => !visibleIds.has(card.id));
+  const result = visibleCards.map((card, index) => ({
     label: card.title,
     value: card.metrics.fans,
     percent: card.share,
     color: PALETTE[index % PALETTE.length]
   }));
 
-  if (minor.length > 0) {
-    const otherValue = minor.reduce((sum, card) => sum + card.metrics.fans, 0);
+  if (groupedCards.length > 0) {
+    const otherValue = groupedCards.reduce((sum, card) => sum + card.metrics.fans, 0);
     result.push({
       label: '其他',
       value: otherValue,
@@ -325,10 +336,10 @@ function renderPanelShell({ x, y, width, height, title, subtitle = '', titleFont
 
 function renderDonutPanel(chart, x, y, width, height, { large = false, themePalette = PALETTE } = {}) {
   const themedChart = withThemeColor(chart, themePalette);
-  const centerX = x + (large ? 152 : 128);
-  const centerY = y + height / 2 + (large ? 8 : 12);
-  const radius = large ? 78 : 64;
-  const strokeWidth = large ? 24 : 20;
+  const centerX = x + (large ? 164 : 140);
+  const centerY = y + height / 2 + (large ? 8 : 18);
+  const radius = large ? 94 : 86;
+  const strokeWidth = large ? 26 : 24;
   const circumference = 2 * Math.PI * radius;
   const total = Math.max(themedChart.reduce((sum, item) => sum + item.value, 0), 1);
   let offset = 0;
@@ -357,22 +368,24 @@ function renderDonutPanel(chart, x, y, width, height, { large = false, themePale
     })
     .join('');
 
-  const legendStartX = x + (large ? 316 : 258);
+  const legendStartX = x + (large ? 338 : 292);
+  const legendStep = large ? 32 : 28;
+  const legendFontSize = large ? 16 : 14;
   const legend = themedChart
     .map(
       (item, index) => `
-        <rect x="${legendStartX}" y="${y + 78 + index * (large ? 38 : 34)}" width="12" height="12" rx="6" fill="${item.color}"/>
-        <text x="${legendStartX + 20}" y="${y + 89 + index * (large ? 38 : 34)}" fill="#F7EADB" font-size="${large ? 19 : 17}" font-weight="600">${escapeXml(item.label)}</text>
-        <text x="${x + width - 24}" y="${y + 89 + index * (large ? 38 : 34)}" fill="#E3C9AB" font-size="${large ? 19 : 17}" font-weight="700" text-anchor="end">${escapeXml(`${item.percent}%`)}</text>
+        <rect x="${legendStartX}" y="${y + 82 + index * legendStep}" width="10" height="10" rx="5" fill="${item.color}"/>
+        <text x="${legendStartX + 18}" y="${y + 91 + index * legendStep}" fill="#F7EADB" font-size="${legendFontSize}" font-weight="600">${escapeXml(item.label)}</text>
+        <text x="${x + width - 24}" y="${y + 91 + index * legendStep}" fill="#E3C9AB" font-size="${legendFontSize}" font-weight="700" text-anchor="end">${escapeXml(`${item.percent}%`)}</text>
       `
     )
     .join('');
 
   return `
-    ${renderPanelShell({ x, y, width, height, title: '平台粉丝占比', subtitle: '小于 1% 的平台合并为其他', titleFontSize: large ? 24 : 22 })}
+    ${renderPanelShell({ x, y, width, height, title: '平台粉丝占比', titleFontSize: large ? 24 : 22 })}
     <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="${strokeWidth}"/>
     ${arcs}
-    <text x="${centerX}" y="${centerY - 10}" fill="#CDB89F" font-size="${large ? 18 : 16}" text-anchor="middle">总粉丝</text>
+    <text x="${centerX}" y="${centerY - 12}" fill="#CDB89F" font-size="${large ? 18 : 16}" text-anchor="middle">总粉丝</text>
     <text x="${centerX}" y="${centerY + 34}" fill="#FFF7EC" font-size="${large ? 40 : 34}" font-weight="700" text-anchor="middle">${escapeXml(formatNumber(total))}</text>
     ${legend}
   `;
@@ -420,6 +433,10 @@ function normalizeDashboardModuleIds(moduleIds = DEFAULT_DASHBOARD_MODULE_IDS) {
 }
 
 function normalizeOpacity(value, fallback = 0.58) {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+
   const numberValue = Number(value);
 
   if (!Number.isFinite(numberValue)) {
@@ -449,6 +466,30 @@ function renderHeroCard(snapshot, x, y, width, height, { large = false } = {}) {
   `;
 }
 
+function renderAccountBadge(snapshot, x, y, width, height, { accountName = '', avatarImage = '' } = {}) {
+  const name = String(accountName || '').trim() || 'AllFans';
+  const avatarMarkup = String(avatarImage || '').startsWith('data:image/')
+    ? `
+      <defs>
+        <clipPath id="accountAvatarClip">
+          <circle cx="${x + width - 70}" cy="${y + height / 2}" r="42"/>
+        </clipPath>
+      </defs>
+      <image href="${escapeXml(avatarImage)}" x="${x + width - 112}" y="${y + height / 2 - 42}" width="84" height="84" preserveAspectRatio="xMidYMid slice" clip-path="url(#accountAvatarClip)"/>`
+    : `
+      <circle cx="${x + width - 70}" cy="${y + height / 2}" r="42" fill="#FFFFFF" fill-opacity="0.1" stroke="#FFFFFF" stroke-opacity="0.16"/>
+      <text x="${x + width - 70}" y="${y + height / 2 + 10}" fill="#F7EADB" font-size="28" font-weight="700" text-anchor="middle">${escapeXml(name.slice(0, 1).toUpperCase())}</text>`;
+
+  return `
+    <g>
+      <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="24" fill="#FFFFFF" fill-opacity="0.06" stroke="#FFFFFF" stroke-opacity="0.14"/>
+      <text x="${x + 28}" y="${y + 42}" fill="#D4B795" font-size="18" letter-spacing="3">ACCOUNT</text>
+      <text x="${x + 28}" y="${y + 88}" fill="#FFF7EC" font-size="34" font-weight="700">${escapeXml(name)}</text>
+      ${avatarMarkup}
+    </g>
+  `;
+}
+
 function renderChartModule(snapshot, moduleId, x, y, width, height, options = {}) {
   if (moduleId === 'fanShare') {
     return renderDonutPanel(snapshot.charts.fanShare, x, y, width, height, options);
@@ -465,10 +506,25 @@ function getEnabledChartModules(moduleSet) {
   return ['fanShare', 'topPlays', 'interactionMix'].filter(moduleId => hasModule(moduleSet, moduleId));
 }
 
-function renderLandscape(snapshot, preset, moduleSet, themePalette) {
+function getLayoutPreset(preset) {
+  if (preset.width < preset.height) {
+    return getDashboardPresetById('story');
+  }
+
+  if (preset.width === preset.height) {
+    return getDashboardPresetById('square');
+  }
+
+  return getDashboardPresetById('landscape');
+}
+
+function renderLandscape(snapshot, preset, moduleSet, themePalette, accountOptions = {}) {
   const metricWidth = 244;
   const metricHeight = 94;
   const metricGap = 16;
+  const hasSummary = hasModule(moduleSet, 'summary');
+  const hasHero = hasModule(moduleSet, 'hero');
+  const hasAccount = hasModule(moduleSet, 'account');
   const chartModules = getEnabledChartModules(moduleSet);
   const chartGap = 22;
   const chartWidth = chartModules.length > 0
@@ -489,8 +545,9 @@ function renderLandscape(snapshot, preset, moduleSet, themePalette) {
     <text x="64" y="62" fill="#D4B795" font-size="20" letter-spacing="4">AllFans Data Board</text>
     <text x="64" y="134" fill="#FFF7EC" font-size="${getTitleFontSize(snapshot.title, preset.id)}" font-weight="700">${escapeXml(snapshot.title)}</text>
     <text x="64" y="176" fill="#BFA78D" font-size="18">最近汇总：${escapeXml(snapshot.summary.lastUpdateLabel)}</text>
-    ${hasModule(moduleSet, 'hero') ? renderHeroCard(snapshot, 1128, 58, 408, 160) : ''}
-    ${hasModule(moduleSet, 'summary') ? summaryCards
+    ${hasAccount ? renderAccountBadge(snapshot, 1128, 58, 408, 132, accountOptions) : ''}
+    ${hasHero ? renderHeroCard(snapshot, 1128, hasSummary ? 218 : 206, 408, hasSummary ? 204 : 160) : ''}
+    ${hasSummary ? summaryCards
       .map(([label, value, accent], index) =>
         renderMetricCard({
           x: 64 + (index % 4) * (metricWidth + metricGap),
@@ -505,18 +562,24 @@ function renderLandscape(snapshot, preset, moduleSet, themePalette) {
       .join('') : ''}
     ${chartModules
       .map((moduleId, index) =>
-        renderChartModule(snapshot, moduleId, 64 + index * (chartWidth + chartGap), hasModule(moduleSet, 'summary') ? 444 : 226, chartWidth, hasModule(moduleSet, 'summary') ? 380 : 598, { themePalette })
+        renderChartModule(snapshot, moduleId, 64 + index * (chartWidth + chartGap), hasSummary ? 444 : hasHero ? 390 : 226, chartWidth, hasSummary ? 380 : hasHero ? 434 : 598, { themePalette })
       )
       .join('')}
   `;
 }
 
-function renderSquare(snapshot, preset, moduleSet, themePalette) {
+function renderSquare(snapshot, preset, moduleSet, themePalette, accountOptions = {}) {
   const metricWidth = (preset.width - 64 * 2 - 18 * 3) / 4;
   const metricHeight = 86;
   const chartModules = getEnabledChartModules(moduleSet);
   const chartWidth = (preset.width - 64 * 2 - 22) / 2;
   const hasSummary = hasModule(moduleSet, 'summary');
+  const hasAccount = hasModule(moduleSet, 'account');
+  const hasHero = hasModule(moduleSet, 'hero');
+  const heroY = hasAccount ? 204 : 152;
+  const summaryY = hasHero ? heroY + 166 : hasAccount ? 190 : 176;
+  const chartY = hasSummary ? summaryY + 210 : summaryY;
+  const chartHeight = hasSummary ? Math.max(240, preset.height - chartY - 64) : Math.max(320, preset.height - chartY - 64);
   const summaryCards = [
     ['总粉丝', snapshot.summary.totalFans, themePalette[0]],
     ['总播放', snapshot.summary.totalPlayCount, themePalette[1]],
@@ -531,12 +594,13 @@ function renderSquare(snapshot, preset, moduleSet, themePalette) {
   return `
     <text x="64" y="58" fill="#D4B795" font-size="20" letter-spacing="4">AllFans Data Board</text>
     <text x="64" y="122" fill="#FFF7EC" font-size="${getTitleFontSize(snapshot.title, preset.id)}" font-weight="700">${escapeXml(snapshot.title)}</text>
-    ${hasModule(moduleSet, 'hero') ? renderHeroCard(snapshot, 64, 152, preset.width - 128, 140) : ''}
+    ${hasAccount ? renderAccountBadge(snapshot, preset.width - 392, 50, 328, 112, accountOptions) : ''}
+    ${hasHero ? renderHeroCard(snapshot, 64, heroY, preset.width - 128, 140) : ''}
     ${hasSummary ? summaryCards
       .map(([label, value, accent], index) =>
         renderMetricCard({
           x: 64 + (index % 4) * (metricWidth + 18),
-          y: 318 + Math.floor(index / 4) * 98,
+          y: summaryY + Math.floor(index / 4) * 98,
           width: metricWidth,
           height: metricHeight,
           label,
@@ -548,24 +612,42 @@ function renderSquare(snapshot, preset, moduleSet, themePalette) {
     ${chartModules
       .map((moduleId, index) => {
         if (chartModules.length === 1) {
-          return renderChartModule(snapshot, moduleId, 64, hasSummary ? 528 : 318, preset.width - 128, hasSummary ? 584 : 794, { themePalette });
+          return renderChartModule(snapshot, moduleId, 64, chartY, preset.width - 128, chartHeight, { themePalette });
         }
 
         if (index < 2) {
-          return renderChartModule(snapshot, moduleId, 64 + index * (chartWidth + 22), hasSummary ? 528 : 318, chartWidth, hasSummary ? 286 : 374, { themePalette });
+          return renderChartModule(snapshot, moduleId, 64 + index * (chartWidth + 22), chartY, chartWidth, Math.floor((chartHeight - 22) / 2), { themePalette });
         }
 
-        return renderChartModule(snapshot, moduleId, 64, hasSummary ? 836 : 714, preset.width - 128, hasSummary ? 276 : 398, { themePalette });
+        return renderChartModule(snapshot, moduleId, 64, chartY + Math.floor((chartHeight - 22) / 2) + 22, preset.width - 128, Math.floor((chartHeight - 22) / 2), { themePalette });
       })
       .join('')}
   `;
 }
 
-function renderStory(snapshot, preset, moduleSet, themePalette) {
+function renderStory(snapshot, preset, moduleSet, themePalette, accountOptions = {}) {
   const metricWidth = (preset.width - 64 * 2 - 18) / 2;
   const metricHeight = 88;
   const chartModules = getEnabledChartModules(moduleSet);
   const hasSummary = hasModule(moduleSet, 'summary');
+  const hasAccount = hasModule(moduleSet, 'account');
+  const hasHero = hasModule(moduleSet, 'hero');
+  const accountY = 204;
+  const hasInlineIntro = hasAccount && hasHero;
+  const inlineGap = 20;
+  const accountWidth = hasInlineIntro ? 364 : preset.width - 128;
+  const heroX = hasInlineIntro ? 64 + accountWidth + inlineGap : 64;
+  const heroY = hasInlineIntro ? accountY : hasAccount ? 360 : 204;
+  const heroWidth = hasInlineIntro ? preset.width - 128 - accountWidth - inlineGap : preset.width - 128;
+  const heroHeight = hasInlineIntro ? 132 : 164;
+  const summaryY = hasInlineIntro
+    ? accountY + 156
+    : hasHero
+      ? heroY + 190
+      : hasAccount
+        ? accountY + 156
+        : 204;
+  const chartStartY = hasSummary ? summaryY + 450 : summaryY;
   const summaryCards = [
     ['总粉丝', snapshot.summary.totalFans, themePalette[0]],
     ['总播放', snapshot.summary.totalPlayCount, themePalette[1]],
@@ -580,12 +662,13 @@ function renderStory(snapshot, preset, moduleSet, themePalette) {
   return `
     <text x="64" y="72" fill="#D4B795" font-size="22" letter-spacing="4">AllFans Data Board</text>
     <text x="64" y="152" fill="#FFF7EC" font-size="${getTitleFontSize(snapshot.title, preset.id)}" font-weight="700">${escapeXml(snapshot.title)}</text>
-    ${hasModule(moduleSet, 'hero') ? renderHeroCard(snapshot, 64, 204, preset.width - 128, 164, { large: true }) : ''}
+    ${hasAccount ? renderAccountBadge(snapshot, 64, accountY, accountWidth, 132, accountOptions) : ''}
+    ${hasHero ? renderHeroCard(snapshot, heroX, heroY, heroWidth, heroHeight, { large: !hasInlineIntro }) : ''}
     ${hasSummary ? summaryCards
       .map(([label, value, accent], index) =>
         renderMetricCard({
           x: 64 + (index % 2) * (metricWidth + 18),
-          y: 394 + Math.floor(index / 2) * 106,
+          y: summaryY + Math.floor(index / 2) * 106,
           width: metricWidth,
           height: metricHeight,
           label,
@@ -598,7 +681,7 @@ function renderStory(snapshot, preset, moduleSet, themePalette) {
       .join('') : ''}
     ${chartModules
       .map((moduleId, index) =>
-        renderChartModule(snapshot, moduleId, 64, (hasSummary ? 844 : 394) + index * 326, preset.width - 128, 300, { large: true, themePalette })
+        renderChartModule(snapshot, moduleId, 64, chartStartY + index * 326, preset.width - 128, 300, { large: true, themePalette })
       )
       .join('')}
   `;
@@ -769,34 +852,48 @@ export function createDashboardSvg(
   {
     presetId = 'landscape',
     backgroundMode = 'solid',
+    defaultBackgroundOpacity = null,
     moduleIds = DEFAULT_DASHBOARD_MODULE_IDS,
     themeColor = DEFAULT_DASHBOARD_THEME_COLOR,
     backgroundImage = '',
-    backgroundImageOpacity = 0.58
+    backgroundImageOpacity = 0.58,
+    accountName = '',
+    avatarImage = ''
   } = {}
 ) {
   const preset = getDashboardPresetById(presetId);
   const moduleSet = new Set(normalizeDashboardModuleIds(moduleIds));
   const normalizedThemeColor = normalizeHexColor(themeColor);
   const themePalette = createThemePalette(normalizedThemeColor);
-  const backgroundOpacity = backgroundMode === 'translucent' ? '0.72' : '1';
-  const glowOpacity = backgroundMode === 'translucent' ? '0.34' : '0.48';
-  const circleOpacity = backgroundMode === 'translucent' ? '0.05' : '0.08';
-  const circleOpacitySoft = backgroundMode === 'translucent' ? '0.04' : '0.05';
-  const ribbonOpacity = backgroundMode === 'translucent' ? '0.02' : '0.03';
+  const defaultBackgroundOpacityFallback = backgroundMode === 'translucent' ? 0.72 : 1;
+  const defaultBackgroundOpacityNumber = normalizeOpacity(
+    defaultBackgroundOpacity,
+    defaultBackgroundOpacityFallback
+  );
+  const backgroundOpacity = defaultBackgroundOpacityNumber.toFixed(2);
+  const glowOpacity = (0.16 + defaultBackgroundOpacityNumber * 0.32).toFixed(2);
+  const circleOpacity = (0.02 + defaultBackgroundOpacityNumber * 0.06).toFixed(2);
+  const circleOpacitySoft = (0.02 + defaultBackgroundOpacityNumber * 0.03).toFixed(2);
+  const ribbonOpacity = (0.01 + defaultBackgroundOpacityNumber * 0.02).toFixed(2);
   const normalizedBackgroundImageOpacity = normalizeOpacity(backgroundImageOpacity).toFixed(2);
   const backgroundImageMarkup = String(backgroundImage || '').startsWith('data:image/')
     ? `
     <image href="${escapeXml(backgroundImage)}" x="0" y="0" width="${preset.width}" height="${preset.height}" preserveAspectRatio="xMidYMid slice" opacity="${normalizedBackgroundImageOpacity}"/>
-    <rect width="${preset.width}" height="${preset.height}" fill="#090807" fill-opacity="${backgroundMode === 'translucent' ? '0.42' : '0.54'}"/>`
+    <rect width="${preset.width}" height="${preset.height}" fill="#090807" fill-opacity="${(defaultBackgroundOpacityNumber * 0.54).toFixed(2)}"/>`
     : '';
 
+  const layoutPreset = getLayoutPreset(preset);
+  const layoutScale = preset.width / layoutPreset.width;
+  const accountOptions = { accountName, avatarImage };
   const body =
-    preset.id === 'story'
-      ? renderStory(snapshot, preset, moduleSet, themePalette)
-      : preset.id === 'square'
-        ? renderSquare(snapshot, preset, moduleSet, themePalette)
-        : renderLandscape(snapshot, preset, moduleSet, themePalette);
+    layoutPreset.width < layoutPreset.height
+      ? renderStory(snapshot, layoutPreset, moduleSet, themePalette, accountOptions)
+      : layoutPreset.width === layoutPreset.height
+        ? renderSquare(snapshot, layoutPreset, moduleSet, themePalette, accountOptions)
+        : renderLandscape(snapshot, layoutPreset, moduleSet, themePalette, accountOptions);
+  const scaledBody = layoutScale === 1
+    ? body
+    : `<g transform="scale(${layoutScale})">${body}</g>`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${preset.width}" height="${preset.height}" viewBox="0 0 ${preset.width} ${preset.height}" fill="none">
     <defs>
@@ -816,6 +913,6 @@ export function createDashboardSvg(
     <circle cx="${preset.width - 112}" cy="${preset.height - 132}" r="${preset.width * 0.08}" fill="${themePalette[1]}" fill-opacity="${circleOpacity}"/>
     <circle cx="118" cy="${preset.height - 120}" r="${preset.width * 0.06}" fill="${themePalette[2]}" fill-opacity="${circleOpacitySoft}"/>
     <path d="M0 ${preset.height - 148}C${preset.width * 0.28} ${preset.height - 260} ${preset.width * 0.66} ${preset.height - 24} ${preset.width} ${preset.height - 118}V${preset.height}H0Z" fill="#FFFFFF" fill-opacity="${ribbonOpacity}"/>
-    ${body}
+    ${scaledBody}
   </svg>`;
 }

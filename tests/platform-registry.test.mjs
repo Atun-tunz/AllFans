@@ -136,6 +136,41 @@ test('Douyin and Xiaohongshu prefer syncing only their default entrypoint in ope
   assert.equal(getPlatformById('xiaohongshu').useOnlyDefaultSyncEntrypoint, true);
 });
 
+test('Douyin allows slow creator pages to finish loading during open-and-sync', () => {
+  const platform = getPlatformById('douyin');
+
+  assert.equal(platform.syncOptions.tabLoadTimeoutMs, 90000);
+  assert.equal(platform.syncOptions.messageRetryCount, 40);
+  assert.equal(platform.syncOptions.messageRetryDelayMs, 500);
+});
+
+test('Douyin declares its page bridge resource for creator work-list capture', () => {
+  const platform = getPlatformById('douyin');
+
+  assert.deepEqual(
+    platform.contentScripts.map(entry => ({
+      js: entry.js,
+      world: entry.world || null
+    })),
+    [
+      {
+        js: ['content/douyin-bridge.js'],
+        world: 'MAIN'
+      },
+      {
+        js: ['content/douyin-metrics.js', 'content/douyin-sync.js'],
+        world: null
+      }
+    ]
+  );
+  assert.deepEqual(platform.webAccessibleResources, [
+    {
+      resources: ['content/douyin-bridge.js'],
+      matches: ['https://creator.douyin.com/*']
+    }
+  ]);
+});
+
 test('Xiaohongshu content script is injected at document_start to catch early note requests', () => {
   const platform = getPlatformById('xiaohongshu');
 
@@ -146,6 +181,7 @@ test('Douyin content script is injected at document_start to catch early work li
   const platform = getPlatformById('douyin');
 
   assert.equal(platform.contentScripts[0]?.runAt, 'document_start');
+  assert.equal(platform.contentScripts[1]?.runAt, 'document_start');
 });
 
 test('Kuaishou content script is injected at document_start to catch early photo list requests', () => {
@@ -332,11 +368,23 @@ test('Weibo declares account, video, and article entrypoints with page bridge re
     }
   ]);
   assert.deepEqual(
-    platform.contentScripts.map(entry => entry.js),
-    [['content/weibo-metrics.js', 'content/weibo-sync.js']]
+    platform.contentScripts.map(entry => ({
+      js: entry.js,
+      world: entry.world || null
+    })),
+    [
+      {
+        js: ['content/weibo-bridge.js'],
+        world: 'MAIN'
+      },
+      {
+        js: ['content/weibo-metrics.js', 'content/weibo-sync.js'],
+        world: null
+      }
+    ]
   );
   assert.equal(
-    platform.matchesActiveTab('https://weibo.com/profile')?.entrypointId,
+    platform.matchesActiveTab('https://weibo.com/')?.entrypointId,
     'account'
   );
   assert.equal(

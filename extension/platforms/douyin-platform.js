@@ -6,11 +6,28 @@ export const douyinPlatform = {
   title: '\u6296\u97f3',
   order: 2,
   hostPermissions: ['https://www.douyin.com/*', 'https://creator.douyin.com/*'],
+  syncOptions: {
+    tabLoadTimeoutMs: 90000,
+    messageRetryCount: 40,
+    messageRetryDelayMs: 500
+  },
   contentScripts: [
+    {
+      matches: ['https://creator.douyin.com/*'],
+      js: ['content/douyin-bridge.js'],
+      runAt: 'document_start',
+      world: 'MAIN'
+    },
     {
       matches: ['https://creator.douyin.com/*'],
       js: ['content/douyin-metrics.js', 'content/douyin-sync.js'],
       runAt: 'document_start'
+    }
+  ],
+  webAccessibleResources: [
+    {
+      resources: ['content/douyin-bridge.js'],
+      matches: ['https://creator.douyin.com/*']
     }
   ],
   syncEntrypoints: [

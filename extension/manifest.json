@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AllFans",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "帮助创作者汇总查看多平台后台数据，并推送最新快照到本地程序。",
   "permissions": [
     "storage",
@@ -42,6 +42,12 @@
     },
     {
       "matches": ["https://creator.douyin.com/*"],
+      "js": ["content/douyin-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://creator.douyin.com/*"],
       "js": ["content/douyin-metrics.js", "content/douyin-sync.js"],
       "run_at": "document_start"
     },
@@ -70,11 +76,21 @@
     },
     {
       "matches": ["https://weibo.com/*", "https://www.weibo.com/*", "https://me.weibo.com/*"],
+      "js": ["content/weibo-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://weibo.com/*", "https://www.weibo.com/*", "https://me.weibo.com/*"],
       "js": ["content/weibo-metrics.js", "content/weibo-sync.js"],
       "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [
+    {
+      "resources": ["content/douyin-bridge.js"],
+      "matches": ["https://creator.douyin.com/*"]
+    },
     {
       "resources": ["content/xiaohongshu-bridge.js"],
       "matches": ["https://creator.xiaohongshu.com/*"]

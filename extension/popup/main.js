@@ -7,6 +7,8 @@ import { animateValue, parseDisplayNumber, shouldAnimate } from './number-animat
 import ToastManager from './toast.js';
 
 const SYNC_STATUS_KEEP_MS = 5 * 60 * 1000;
+const SYNC_ALL_STATUS_POLL_MS = 1500;
+const SYNC_ALL_STATUS_TIMEOUT_MS = 12 * 60 * 1000;
 
 let feedback;
 let toast;
@@ -27,6 +29,7 @@ function bindActions() {
   document.getElementById('syncAllBtn')?.addEventListener('click', syncAllPlatforms);
   document.getElementById('clearCacheBtn')?.addEventListener('click', clearCachedData);
   document.getElementById('openOptionsBtn')?.addEventListener('click', openOptionsPage);
+  document.getElementById('heroOptionsLink')?.addEventListener('click', openOptionsPage);
   document.addEventListener('keydown', handleGlobalKeydown);
   bindStorageRefresh();
 }
@@ -220,6 +223,37 @@ function applySyncAllResultBadges(results) {
   }
 }
 
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForSyncAllJob(jobId) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < SYNC_ALL_STATUS_TIMEOUT_MS) {
+    const response = await BrowserApi.runtime.sendMessage({
+      type: MESSAGE_TYPES.GET_SYNC_ALL_STATUS,
+      jobId
+    });
+
+    if (!response?.success) {
+      throw new Error(response?.error || '\u540c\u6b65\u72b6\u6001\u83b7\u53d6\u5931\u8d25');
+    }
+
+    if (response.data.status === 'completed') {
+      return response.data;
+    }
+
+    if (response.data.status === 'failed') {
+      throw new Error(response.data.error || '\u540c\u6b65\u5931\u8d25');
+    }
+
+    await wait(SYNC_ALL_STATUS_POLL_MS);
+  }
+
+  throw new Error('\u540c\u6b65\u72b6\u6001\u83b7\u53d6\u8d85\u65f6\uff0c\u540e\u53f0\u4efb\u52a1\u53ef\u80fd\u4ecd\u5728\u8fd0\u884c\u3002');
+}
+
 function getPlatformStatusBadge(platform, data) {
   const syncEnabled = data.settings.syncEnabledPlatformIds.includes(platform.id);
   if (!syncEnabled) {
@@ -313,12 +347,18 @@ async function syncAllPlatforms() {
       throw new Error(response?.error || '同步失败');
     }
 
-    applySyncAllResultBadges(response.data.results || []);
+    const syncAllResult =
+      response.data?.status === 'running' && response.data?.jobId
+        ? await waitForSyncAllJob(response.data.jobId)
+        : response.data;
+    const syncAllResults = syncAllResult.results || [];
+
+    applySyncAllResultBadges(syncAllResults);
 
     await loadData();
 
-    const failedCount = response.data.results.filter(result => !result.success).length;
-    const partialCount = response.data.results.filter(result => result.status === 'partial').length;
+    const failedCount = syncAllResults.filter(result => !result.success).length;
+    const partialCount = syncAllResults.filter(result => result.status === 'partial').length;
     const message =
       failedCount === 0 && partialCount === 0
         ? '已完成全部平台同步。'

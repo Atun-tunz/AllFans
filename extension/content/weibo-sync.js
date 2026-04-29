@@ -66,7 +66,10 @@
       return false;
     }
 
-    return target.pathname.startsWith('/u/') || target.pathname.startsWith('/p/');
+    return (
+      target.pathname.startsWith('/u/') ||
+      target.pathname.startsWith('/p/')
+    );
   }
 
   function normalizeProfileUrl(value) {

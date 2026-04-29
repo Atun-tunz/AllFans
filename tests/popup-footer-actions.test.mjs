@@ -48,7 +48,9 @@ test('popup sync-all keeps failed platform badges visible after refresh', () => 
   assert.match(script, /function applySyncAllResultBadges\(results\)/);
   assert.match(script, /const badge = mapSyncErrorToBadge\(result\.error\);/);
   assert.match(script, /setTransientSyncState\(result\.platformId,\s*\{[\s\S]*expiresAt:\s*Date\.now\(\) \+ SYNC_STATUS_KEEP_MS/m);
-  assert.match(script, /applySyncAllResultBadges\(response\.data\.results \|\| \[\]\);[\s\S]*await loadData\(\);/m);
+  assert.match(script, /const syncAllResults = syncAllResult\.results \|\| \[\];[\s\S]*applySyncAllResultBadges\(syncAllResults\);[\s\S]*await loadData\(\);/m);
+  assert.match(script, /MESSAGE_TYPES\.GET_SYNC_ALL_STATUS/);
+  assert.match(script, /async function waitForSyncAllJob\(jobId\)/);
 });
 
 test('popup status uses expected sync scopes instead of entrypoint count alone', () => {
@@ -74,6 +76,22 @@ test('popup settings launch card does not render the old status summary copy', (
   const html = fs.readFileSync(htmlPath, 'utf8');
 
   assert.doesNotMatch(html, /settingsLaunchSummary/);
+});
+
+test('popup exposes data studio entrypoints from settings card and brand link', () => {
+  const htmlPath = path.join(process.cwd(), 'extension', 'popup', 'index.html');
+  const scriptPath = path.join(process.cwd(), 'extension', 'popup', 'main.js');
+  const cssPath = path.join(process.cwd(), 'extension', 'popup', 'popup.css');
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const script = fs.readFileSync(scriptPath, 'utf8');
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  assert.match(html, /id="heroOptionsLink"/);
+  assert.match(html, /aria-label="打开数据展厅"/);
+  assert.match(html, />数据展厅<\/h2>/);
+  assert.match(html, />\s*打开展厅\s*<\/button>/);
+  assert.match(script, /document\.getElementById\('heroOptionsLink'\)\?\.addEventListener\('click', openOptionsPage\)/);
+  assert.match(css, /\.hero-options-link\s*\{/);
 });
 
 test('popup no longer ships the removed inline settings panel implementation', () => {

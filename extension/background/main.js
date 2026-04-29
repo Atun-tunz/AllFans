@@ -10,6 +10,11 @@ const OPEN_SYNC_OPTIONS = {
   messageRetryDelayMs: 400
 };
 
+const SYNC_ALL_JOB_KEEP_MS = 10 * 60 * 1000;
+
+let activeSyncAllJob = null;
+let lastSyncAllJob = null;
+
 function resolveOpenSyncOptions(platform) {
   return {
     ...OPEN_SYNC_OPTIONS,
@@ -155,8 +160,19 @@ async function handleMessage(message, sender, sendResponse) {
       }
 
       case MESSAGE_TYPES.SYNC_ALL_ENABLED_PLATFORMS: {
-        const result = await syncAllEnabledPlatforms(message.reason || 'manual');
-        sendResponse({ success: true, data: result });
+        const job = startSyncAllEnabledPlatformsJob(message.reason || 'manual');
+        sendResponse({ success: true, data: getSyncAllJobSnapshot(job) });
+        break;
+      }
+
+      case MESSAGE_TYPES.GET_SYNC_ALL_STATUS: {
+        const job = findSyncAllJob(message.jobId);
+        if (!job) {
+          sendResponse({ success: false, error: 'Sync job not found.' });
+          break;
+        }
+
+        sendResponse({ success: true, data: getSyncAllJobSnapshot(job) });
         break;
       }
 
@@ -355,7 +371,10 @@ function isWeiboProfileTabUrl(url) {
     const target = new URL(String(url));
     return (
       ['weibo.com', 'www.weibo.com'].includes(target.hostname) &&
-      (target.pathname.startsWith('/u/') || target.pathname.startsWith('/p/'))
+      (
+        target.pathname.startsWith('/u/') ||
+        target.pathname.startsWith('/p/')
+      )
     );
   } catch {
     return false;
@@ -376,15 +395,8 @@ function createEntrypointUrlMatcher(platform, entrypoint) {
   };
 }
 
-async function ensureWeiboAccountProfilePage({ platform, entrypoint, tabId, openSyncOptions }) {
-  if (platform?.id !== 'weibo' || entrypoint?.id !== 'account') {
-    return;
-  }
-
-  const latestTab = await BrowserApi.tabs.get(tabId);
-  if (isWeiboProfileTabUrl(latestTab.url)) {
-    return;
-  }
+async function readWeiboAccountProfileUrlOnce({ platform, tabId, currentUrl, openSyncOptions }) {
+  await delay(Math.min(openSyncOptions.weiboProfileSettleDelayMs || 8000, 15000));
 
   const response = await sendMessageWithRetry(
     tabId,
@@ -395,7 +407,28 @@ async function ensureWeiboAccountProfilePage({ platform, entrypoint, tabId, open
     openSyncOptions
   );
   const profileUrl = response?.success ? response.url || null : null;
-  if (!profileUrl || profileUrl === latestTab.url) {
+  return profileUrl && profileUrl !== currentUrl && isWeiboProfileTabUrl(profileUrl)
+    ? profileUrl
+    : null;
+}
+
+async function ensureWeiboAccountProfilePage({ platform, entrypoint, tabId, openSyncOptions }) {
+  if (platform?.id !== 'weibo' || entrypoint?.id !== 'account') {
+    return;
+  }
+
+  const latestTab = await BrowserApi.tabs.get(tabId);
+  if (isWeiboProfileTabUrl(latestTab.url)) {
+    return;
+  }
+
+  const profileUrl = await readWeiboAccountProfileUrlOnce({
+    platform,
+    tabId,
+    currentUrl: latestTab.url,
+    openSyncOptions
+  });
+  if (!profileUrl) {
     return;
   }
 
@@ -403,10 +436,18 @@ async function ensureWeiboAccountProfilePage({ platform, entrypoint, tabId, open
   await waitForTabReady(tabId, url => isWeiboProfileTabUrl(url), openSyncOptions);
 }
 
-async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipPush = false }) {
+async function openAndSyncSingleEntrypoint({
+  platform,
+  entrypoint,
+  reason,
+  skipPush = false,
+  openInBackground = false
+}) {
   const openSyncOptions = resolveOpenSyncOptions(platform);
   const matchesEntrypointUrl = createEntrypointUrlMatcher(platform, entrypoint);
-  const tab = await openOrActivateTargetTab(entrypoint.url, matchesEntrypointUrl);
+  const tab = await openOrActivateTargetTab(entrypoint.url, matchesEntrypointUrl, {
+    active: !openInBackground
+  });
   await waitForTabReady(tab.id, matchesEntrypointUrl, openSyncOptions);
 
   const latestTab = await BrowserApi.tabs.get(tab.id);
@@ -447,7 +488,13 @@ async function openAndSyncSingleEntrypoint({ platform, entrypoint, reason, skipP
   }
 }
 
-async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush = false }) {
+async function openAndSyncPlatform({
+  platformId,
+  entrypointId,
+  reason,
+  skipPush = false,
+  openInBackground = false
+}) {
   const platform = getPlatformById(platformId);
   if (!platform) {
     throw new Error(`Unsupported platform "${platformId}".`);
@@ -465,7 +512,8 @@ async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush 
       platform,
       entrypoint: firstEntrypoint,
       reason,
-      skipPush
+      skipPush,
+      openInBackground
     });
   }
 
@@ -477,7 +525,8 @@ async function openAndSyncPlatform({ platformId, entrypointId, reason, skipPush 
         platform,
         entrypoint: candidate,
         reason,
-        skipPush: true
+        skipPush: true,
+        openInBackground
       });
 
       results.push({
@@ -540,7 +589,8 @@ async function syncAllEnabledPlatforms(reason) {
       const result = await openAndSyncPlatform({
         platformId,
         reason,
-        skipPush: true
+        skipPush: true,
+        openInBackground: true
       });
 
       results.push({
@@ -568,19 +618,88 @@ async function syncAllEnabledPlatforms(reason) {
   };
 }
 
-async function openOrActivateTargetTab(targetUrl, matchesUrl) {
-  const tabs = await BrowserApi.tabs.query({ lastFocusedWindow: true });
+function findSyncAllJob(jobId) {
+  if (activeSyncAllJob?.id === jobId) {
+    return activeSyncAllJob;
+  }
+
+  if (lastSyncAllJob?.id === jobId && Date.now() - lastSyncAllJob.updatedAt <= SYNC_ALL_JOB_KEEP_MS) {
+    return lastSyncAllJob;
+  }
+
+  return null;
+}
+
+function getSyncAllJobSnapshot(job) {
+  return {
+    jobId: job.id,
+    status: job.status,
+    startedAt: job.startedAt,
+    updatedAt: job.updatedAt,
+    results: job.results || [],
+    pushResult: job.pushResult || null,
+    error: job.error || null
+  };
+}
+
+function startSyncAllEnabledPlatformsJob(reason) {
+  if (activeSyncAllJob?.status === 'running') {
+    return activeSyncAllJob;
+  }
+
+  const now = Date.now();
+  const job = {
+    id: `sync-all-${now}`,
+    status: 'running',
+    reason,
+    startedAt: new Date(now).toISOString(),
+    updatedAt: now,
+    results: [],
+    pushResult: null,
+    error: null
+  };
+
+  activeSyncAllJob = job;
+
+  syncAllEnabledPlatforms(reason)
+    .then(result => {
+      job.status = 'completed';
+      job.results = result.results || [];
+      job.pushResult = result.pushResult || null;
+      job.updatedAt = Date.now();
+    })
+    .catch(error => {
+      job.status = 'failed';
+      job.error = error instanceof Error ? error.message : String(error);
+      job.updatedAt = Date.now();
+      console.error('AllFans: sync-all job failed', error);
+    })
+    .finally(() => {
+      if (activeSyncAllJob?.id === job.id) {
+        activeSyncAllJob = null;
+      }
+      lastSyncAllJob = job;
+    });
+
+  return job;
+}
+
+async function openOrActivateTargetTab(targetUrl, matchesUrl, { active = true } = {}) {
+  const tabs = await BrowserApi.tabs.query({});
   const existingTab = tabs.find(
     tab => matchesUrl(tab.url) || matchesUrl(tab.pendingUrl)
   );
 
   if (existingTab) {
-    await BrowserApi.tabs.update(existingTab.id, { active: true });
+    if (active) {
+      await BrowserApi.tabs.update(existingTab.id, { active: true });
+    }
 
     if (existingTab.url === targetUrl) {
       await BrowserApi.tabs.reload(existingTab.id);
     } else {
-      await BrowserApi.tabs.update(existingTab.id, { url: targetUrl });
+      const updateProperties = active ? { url: targetUrl, active: true } : { url: targetUrl };
+      await BrowserApi.tabs.update(existingTab.id, updateProperties);
     }
 
     return BrowserApi.tabs.get(existingTab.id);
@@ -588,7 +707,7 @@ async function openOrActivateTargetTab(targetUrl, matchesUrl) {
 
   return BrowserApi.tabs.create({
     url: targetUrl,
-    active: true
+    active
   });
 }
 

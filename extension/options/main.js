@@ -16,19 +16,61 @@ import {
 
 const DASHBOARD_TITLE_STORAGE_KEY = 'allfans.dashboardTitle';
 const DASHBOARD_BG_STORAGE_KEY = 'allfans.dashboardBackgroundMode';
+const DASHBOARD_DEFAULT_BACKGROUND_OPACITY_STORAGE_KEY = 'allfans.dashboardDefaultBackgroundOpacity';
 const DASHBOARD_MODULES_STORAGE_KEY = 'allfans.dashboardModules';
 const DASHBOARD_THEME_COLOR_STORAGE_KEY = 'allfans.dashboardThemeColor';
 const DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY = 'allfans.dashboardBackgroundImage';
 const DASHBOARD_BACKGROUND_OPACITY_STORAGE_KEY = 'allfans.dashboardBackgroundOpacity';
+const DASHBOARD_ACCOUNT_NAME_STORAGE_KEY = 'allfans.dashboardAccountName';
+const DASHBOARD_AVATAR_IMAGE_STORAGE_KEY = 'allfans.dashboardAvatarImage';
+const MAX_SOURCE_IMAGE_BYTES = 24 * 1024 * 1024;
+const MAX_BACKGROUND_IMAGE_DATA_URL_BYTES = 1.2 * 1024 * 1024;
+const MAX_AVATAR_IMAGE_DATA_URL_BYTES = 360 * 1024;
 const PRESET_HINTS = {
   landscape: '适合横向汇报页、投屏页和网页头图',
+  fhd: '适合 1080p 屏幕、视频封面和高清汇报',
+  qhd: '适合 2K 大屏、高清投屏和演示素材',
+  uhd: '适合 4K 大屏、展厅展示和高分辨率归档',
   square: '适合社媒封面、朋友圈和文档插图',
-  story: '适合竖屏长图、海报和移动端分享'
+  'square-1080': '适合 1080 × 1080 社媒方图',
+  'square-2k': '适合 2K 方图和高清社媒素材',
+  'square-4k': '适合 4K 方图和高分辨率归档',
+  story: '适合竖屏长图、海报和移动端分享',
+  'story-2k': '适合 2K 竖屏海报和高清移动端长图',
+  'story-4k': '适合 4K 竖屏海报和高清移动端长图'
 };
 const BACKGROUND_RATIO_HINTS = {
   landscape: '建议 16:9 背景图，已自动铺满并居中裁切',
+  fhd: '建议 16:9 背景图，已自动铺满并居中裁切',
+  qhd: '建议 16:9 背景图，已自动铺满并居中裁切',
+  uhd: '建议 16:9 背景图，已自动铺满并居中裁切',
   square: '建议 1:1 背景图，已自动铺满并居中裁切',
-  story: '建议 9:16 背景图，已自动铺满并居中裁切'
+  'square-1080': '建议 1:1 背景图，已自动铺满并居中裁切',
+  'square-2k': '建议 1:1 背景图，已自动铺满并居中裁切',
+  'square-4k': '建议 1:1 背景图，已自动铺满并居中裁切',
+  story: '建议 9:16 背景图，已自动铺满并居中裁切',
+  'story-2k': '建议 9:16 背景图，已自动铺满并居中裁切',
+  'story-4k': '建议 9:16 背景图，已自动铺满并居中裁切'
+};
+const DASHBOARD_PRESET_MATRIX = {
+  landscape: {
+    standard: 'landscape',
+    fhd: 'fhd',
+    qhd: 'qhd',
+    uhd: 'uhd'
+  },
+  square: {
+    standard: 'square',
+    fhd: 'square-1080',
+    qhd: 'square-2k',
+    uhd: 'square-4k'
+  },
+  story: {
+    standard: 'story',
+    fhd: 'story',
+    qhd: 'story-2k',
+    uhd: 'story-4k'
+  }
 };
 
 const INSIGHT_CHARTS = [
@@ -54,7 +96,8 @@ const INSIGHT_CHARTS = [
 
 let feedback;
 let latestData = null;
-let currentPresetId = 'landscape';
+let currentRatioId = 'square';
+let currentSizeId = 'standard';
 
 document.addEventListener('DOMContentLoaded', () => {
   feedback = createFeedbackController(document.getElementById('feedback'));
@@ -72,8 +115,14 @@ function bindActions() {
     rerenderPreview();
   });
 
-  document.getElementById('transparentBackgroundToggle')?.addEventListener('change', event => {
-    persistBackgroundMode(event.target.checked ? 'translucent' : 'solid');
+  document.getElementById('dashboardAccountNameInput')?.addEventListener('input', event => {
+    persistDashboardAccountName(event.target.value);
+    rerenderPreview();
+  });
+
+  document.getElementById('dashboardDefaultBackgroundOpacityInput')?.addEventListener('input', event => {
+    persistDashboardDefaultBackgroundOpacity(Number(event.target.value) / 100);
+    updateDashboardDefaultBackgroundOpacityLabel();
     rerenderPreview();
   });
 
@@ -96,7 +145,12 @@ function bindActions() {
   });
 
   document.getElementById('dashboardBackgroundImageInput')?.addEventListener('change', event => {
-    importDashboardBackgroundImage(event.target.files?.[0]);
+    importCompressedDashboardBackgroundImage(event.target.files?.[0]);
+    event.target.value = '';
+  });
+
+  document.getElementById('dashboardAvatarImageInput')?.addEventListener('change', event => {
+    importCompressedDashboardAvatarImage(event.target.files?.[0]);
     event.target.value = '';
   });
 
@@ -105,17 +159,25 @@ function bindActions() {
     rerenderPreview();
   });
 
-  document.querySelectorAll('[data-preset]').forEach(button => {
-    button.addEventListener('click', () => {
-      currentPresetId = button.dataset.preset || 'landscape';
-      updatePresetButtons();
-      rerenderPreview();
-    });
+  document.getElementById('clearDashboardAvatarBtn')?.addEventListener('click', () => {
+    localStorage.removeItem(DASHBOARD_AVATAR_IMAGE_STORAGE_KEY);
+    rerenderPreview();
+  });
+
+  document.getElementById('dashboardRatioSelect')?.addEventListener('change', event => {
+    currentRatioId = event.target.value || 'square';
+    rerenderPreview();
+  });
+
+  document.getElementById('dashboardSizeSelect')?.addEventListener('change', event => {
+    currentSizeId = event.target.value || 'standard';
+    rerenderPreview();
   });
 
   document.querySelectorAll('[data-export-format]').forEach(button => {
     button.addEventListener('click', () => {
-      exportDashboard(button.dataset.exportFormat);
+      const selectedFormat = document.getElementById('dashboardExportFormatSelect')?.value;
+      exportDashboard(button.dataset.exportFormat || selectedFormat || 'png');
     });
   });
 }
@@ -123,12 +185,12 @@ function bindActions() {
 function hydrateDashboardControls() {
   const titleInput = document.getElementById('dashboardTitleInput');
   if (titleInput) {
-    titleInput.value = readDashboardTitle();
+    titleInput.value = readDashboardTitleOverride();
   }
 
-  const transparentToggle = document.getElementById('transparentBackgroundToggle');
-  if (transparentToggle) {
-    transparentToggle.checked = readBackgroundMode() === 'translucent';
+  const accountNameInput = document.getElementById('dashboardAccountNameInput');
+  if (accountNameInput) {
+    accountNameInput.value = readDashboardAccountName();
   }
 
   hydrateDashboardModuleControls();
@@ -143,11 +205,21 @@ function hydrateDashboardControls() {
     backgroundOpacityInput.value = String(Math.round(readDashboardBackgroundOpacity() * 100));
     updateDashboardBackgroundOpacityLabel();
   }
+
+  const defaultBackgroundOpacityInput = document.getElementById('dashboardDefaultBackgroundOpacityInput');
+  if (defaultBackgroundOpacityInput) {
+    defaultBackgroundOpacityInput.value = String(Math.round(readDashboardDefaultBackgroundOpacity() * 100));
+    updateDashboardDefaultBackgroundOpacityLabel();
+  }
 }
 
 function readDashboardTitle() {
+  return readDashboardTitleOverride() || DEFAULT_DASHBOARD_TITLE;
+}
+
+function readDashboardTitleOverride() {
   const storedTitle = localStorage.getItem(DASHBOARD_TITLE_STORAGE_KEY) || '';
-  return storedTitle.trim() || DEFAULT_DASHBOARD_TITLE;
+  return storedTitle.trim();
 }
 
 function persistDashboardTitle(title) {
@@ -161,19 +233,53 @@ function persistDashboardTitle(title) {
   localStorage.setItem(DASHBOARD_TITLE_STORAGE_KEY, normalized);
 }
 
+function readDashboardAccountName() {
+  return (localStorage.getItem(DASHBOARD_ACCOUNT_NAME_STORAGE_KEY) || '').trim();
+}
+
+function persistDashboardAccountName(name) {
+  const normalized = String(name || '').trim();
+
+  if (!normalized) {
+    localStorage.removeItem(DASHBOARD_ACCOUNT_NAME_STORAGE_KEY);
+    return;
+  }
+
+  localStorage.setItem(DASHBOARD_ACCOUNT_NAME_STORAGE_KEY, normalized);
+}
+
 function readBackgroundMode() {
   return localStorage.getItem(DASHBOARD_BG_STORAGE_KEY) === 'translucent'
     ? 'translucent'
     : 'solid';
 }
 
-function persistBackgroundMode(mode) {
-  if (mode === 'translucent') {
-    localStorage.setItem(DASHBOARD_BG_STORAGE_KEY, mode);
+function readDashboardDefaultBackgroundOpacity() {
+  const storedValue = localStorage.getItem(DASHBOARD_DEFAULT_BACKGROUND_OPACITY_STORAGE_KEY);
+  const storedOpacity = storedValue === null ? Number.NaN : Number(storedValue);
+
+  if (!Number.isFinite(storedOpacity)) {
+    return readBackgroundMode() === 'translucent' ? 0.72 : 1;
+  }
+
+  return Math.max(0, Math.min(1, storedOpacity));
+}
+
+function persistDashboardDefaultBackgroundOpacity(opacity) {
+  const normalizedOpacity = Math.max(0, Math.min(1, Number(opacity)));
+
+  if (!Number.isFinite(normalizedOpacity)) {
     return;
   }
 
   localStorage.removeItem(DASHBOARD_BG_STORAGE_KEY);
+
+  if (normalizedOpacity === 1) {
+    localStorage.removeItem(DASHBOARD_DEFAULT_BACKGROUND_OPACITY_STORAGE_KEY);
+    return;
+  }
+
+  localStorage.setItem(DASHBOARD_DEFAULT_BACKGROUND_OPACITY_STORAGE_KEY, String(normalizedOpacity));
 }
 
 function readDashboardModules() {
@@ -239,6 +345,11 @@ function readDashboardBackgroundImage() {
   return backgroundImage.startsWith('data:image/') ? backgroundImage : '';
 }
 
+function readDashboardAvatarImage() {
+  const avatarImage = localStorage.getItem(DASHBOARD_AVATAR_IMAGE_STORAGE_KEY) || '';
+  return avatarImage.startsWith('data:image/') ? avatarImage : '';
+}
+
 function readDashboardBackgroundOpacity() {
   const storedValue = localStorage.getItem(DASHBOARD_BACKGROUND_OPACITY_STORAGE_KEY);
   const storedOpacity = storedValue === null ? Number.NaN : Number(storedValue);
@@ -272,6 +383,28 @@ function updateDashboardBackgroundOpacityLabel() {
   }
 }
 
+function updateDashboardDefaultBackgroundOpacityLabel() {
+  const label = document.getElementById('dashboardDefaultBackgroundOpacityValue');
+  if (label) {
+    label.textContent = `${Math.round(readDashboardDefaultBackgroundOpacity() * 100)}%`;
+  }
+}
+
+function isImageTooLarge(file) {
+  return Number(file?.size || 0) > MAX_SOURCE_IMAGE_BYTES;
+}
+
+function persistStoredImage(storageKey, dataUrl, errorMessage) {
+  try {
+    localStorage.setItem(storageKey, dataUrl);
+    return true;
+  } catch (error) {
+    console.warn('AllFans: failed to store dashboard image', error);
+    feedback.show(errorMessage, 'error');
+    return false;
+  }
+}
+
 function importDashboardBackgroundImage(file) {
   if (!file) {
     return;
@@ -279,6 +412,11 @@ function importDashboardBackgroundImage(file) {
 
   if (!file.type.startsWith('image/')) {
     feedback.show('请选择图片文件作为背景。', 'error');
+    return;
+  }
+
+  if (isImageTooLarge(file)) {
+    feedback.show('Image is too large. Please compress it below 3.5MB and try again.', 'error');
     return;
   }
 
@@ -290,7 +428,13 @@ function importDashboardBackgroundImage(file) {
       return;
     }
 
-    localStorage.setItem(DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY, result);
+    if (!persistStoredImage(
+      DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY,
+      result,
+      'Failed to save the background image. Please compress it and try again.'
+    )) {
+      return;
+    }
     rerenderPreview();
     feedback.show('背景图片已应用到预览和图片导出。', 'success');
   };
@@ -300,10 +444,217 @@ function importDashboardBackgroundImage(file) {
   reader.readAsDataURL(file);
 }
 
+function importDashboardAvatarImage(file) {
+  if (!file) {
+    return;
+  }
+
+  if (isImageTooLarge(file)) {
+    feedback.show('Image is too large. Please compress it below 3.5MB and try again.', 'error');
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    feedback.show('请选择图片文件作为账号头像。', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = String(reader.result || '');
+    if (!result.startsWith('data:image/')) {
+      feedback.show('账号头像读取失败，请换一张图片重试。', 'error');
+      return;
+    }
+
+    if (!persistStoredImage(
+      DASHBOARD_AVATAR_IMAGE_STORAGE_KEY,
+      result,
+      'Failed to save the avatar image. Please compress it and try again.'
+    )) {
+      return;
+    }
+    rerenderPreview();
+    feedback.show('账号头像已应用到看板预览。', 'success');
+  };
+  reader.onerror = () => {
+    feedback.show('账号头像读取失败，请换一张图片重试。', 'error');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function importCompressedDashboardBackgroundImage(file) {
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    feedback.show('Please choose an image file for the background.', 'error');
+    return;
+  }
+
+  if (isImageTooLarge(file)) {
+    feedback.show('Image is too large. Please choose an image below 24MB.', 'error');
+    return;
+  }
+
+  try {
+    const result = await prepareStoredImageDataUrl(file, {
+      maxDataUrlBytes: MAX_BACKGROUND_IMAGE_DATA_URL_BYTES,
+      maxDimension: 2200,
+      quality: 0.84
+    });
+
+    if (!result.startsWith('data:image/')) {
+      feedback.show('Failed to read the background image. Please try another image.', 'error');
+      return;
+    }
+
+    if (!persistStoredImage(
+      DASHBOARD_BACKGROUND_IMAGE_STORAGE_KEY,
+      result,
+      'Failed to save the background image. Please try a smaller image.'
+    )) {
+      return;
+    }
+
+    rerenderPreview();
+    feedback.show('Background image applied to preview and export.', 'success');
+  } catch (error) {
+    console.warn('AllFans: failed to import dashboard background image', error);
+    feedback.show('Failed to prepare the background image. Please try another image.', 'error');
+  }
+}
+
+async function importCompressedDashboardAvatarImage(file) {
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    feedback.show('Please choose an image file for the account avatar.', 'error');
+    return;
+  }
+
+  if (isImageTooLarge(file)) {
+    feedback.show('Image is too large. Please choose an image below 24MB.', 'error');
+    return;
+  }
+
+  try {
+    const result = await prepareStoredImageDataUrl(file, {
+      maxDataUrlBytes: MAX_AVATAR_IMAGE_DATA_URL_BYTES,
+      maxDimension: 512,
+      quality: 0.88
+    });
+
+    if (!result.startsWith('data:image/')) {
+      feedback.show('Failed to read the account avatar. Please try another image.', 'error');
+      return;
+    }
+
+    if (!persistStoredImage(
+      DASHBOARD_AVATAR_IMAGE_STORAGE_KEY,
+      result,
+      'Failed to save the avatar image. Please try a smaller image.'
+    )) {
+      return;
+    }
+
+    rerenderPreview();
+    feedback.show('Account avatar applied to preview.', 'success');
+  } catch (error) {
+    console.warn('AllFans: failed to import dashboard avatar image', error);
+    feedback.show('Failed to prepare the avatar image. Please try another image.', 'error');
+  }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function prepareStoredImageDataUrl(file, options) {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  if (!originalDataUrl.startsWith('data:image/')) {
+    return originalDataUrl;
+  }
+
+  if (estimateByteLength(originalDataUrl) <= options.maxDataUrlBytes) {
+    return originalDataUrl;
+  }
+
+  if (file.type === 'image/svg+xml') {
+    throw new Error('SVG image is too large to store.');
+  }
+
+  return compressImageDataUrl(originalDataUrl, options);
+}
+
+function estimateByteLength(value) {
+  return new Blob([String(value || '')]).size;
+}
+
+function compressImageDataUrl(dataUrl, { maxDataUrlBytes, maxDimension, quality }) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const sourceWidth = image.naturalWidth || image.width || 1;
+      const sourceHeight = image.naturalHeight || image.height || 1;
+      const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+      canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        reject(new Error('Canvas is not supported in this browser.'));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      let compressed = canvas.toDataURL('image/jpeg', quality);
+
+      if (estimateByteLength(compressed) > maxDataUrlBytes) {
+        compressed = canvas.toDataURL('image/jpeg', 0.72);
+      }
+
+      if (estimateByteLength(compressed) > maxDataUrlBytes) {
+        reject(new Error('Compressed image is still too large.'));
+        return;
+      }
+
+      resolve(compressed);
+    };
+    image.onerror = () => reject(new Error('Failed to decode image file.'));
+    image.src = dataUrl;
+  });
+}
+
 function rerenderPreview() {
   if (latestData) {
     renderDashboardPreview(latestData);
   }
+}
+
+function getCurrentDashboardPresetId() {
+  return DASHBOARD_PRESET_MATRIX[currentRatioId]?.[currentSizeId] || DASHBOARD_PRESET_MATRIX.square.standard;
+}
+
+function getPresetSelection(presetId) {
+  for (const [ratioId, sizeMap] of Object.entries(DASHBOARD_PRESET_MATRIX)) {
+    for (const [sizeId, mappedPresetId] of Object.entries(sizeMap)) {
+      if (mappedPresetId === presetId) {
+        return { ratioId, sizeId };
+      }
+    }
+  }
+
+  return { ratioId: 'square', sizeId: 'standard' };
 }
 
 function createSnapshot(data) {
@@ -481,32 +832,37 @@ function renderBridgeStatus(bridge) {
 
 function renderDashboardPreview(data) {
   const snapshot = createSnapshot(data);
-  const preset = getDashboardPresetById(currentPresetId);
+  const presetId = getCurrentDashboardPresetId();
+  const preset = getDashboardPresetById(presetId);
   const preview = document.getElementById('dashboardPreview');
   preview.innerHTML = createDashboardSvg(snapshot, {
-    presetId: currentPresetId,
+    presetId,
     backgroundMode: readBackgroundMode(),
+    defaultBackgroundOpacity: readDashboardDefaultBackgroundOpacity(),
     moduleIds: readDashboardModules(),
     themeColor: readDashboardThemeColor(),
     backgroundImage: readDashboardBackgroundImage(),
-    backgroundImageOpacity: readDashboardBackgroundOpacity()
+    backgroundImageOpacity: readDashboardBackgroundOpacity(),
+    accountName: readDashboardAccountName(),
+    avatarImage: readDashboardAvatarImage()
   });
 
-  document.getElementById('dashboardPresetLabel').textContent = preset.label;
-  document.getElementById('dashboardPresetSize').textContent = `${preset.width} × ${preset.height}`;
-  document.getElementById('dashboardPresetHint').textContent = PRESET_HINTS[preset.id];
-  const backgroundRatioHint = document.getElementById('dashboardBackgroundRatioHint');
-  if (backgroundRatioHint) {
-    backgroundRatioHint.textContent = BACKGROUND_RATIO_HINTS[preset.id];
+  const selectedPreset = getPresetSelection(preset.id);
+  const ratioSelect = document.getElementById('dashboardRatioSelect');
+  if (ratioSelect) {
+    ratioSelect.value = selectedPreset.ratioId;
   }
-  preview.style.aspectRatio = `${preset.width} / ${preset.height}`;
-  updatePresetButtons();
-}
-
-function updatePresetButtons() {
-  document.querySelectorAll('[data-preset]').forEach(button => {
-    button.classList.toggle('is-active', button.dataset.preset === currentPresetId);
-  });
+  const sizeSelect = document.getElementById('dashboardSizeSelect');
+  if (sizeSelect) {
+    sizeSelect.value = selectedPreset.sizeId;
+  }
+  document.getElementById('dashboardPresetSize').textContent = `${preset.width} × ${preset.height}`;
+  document.getElementById('dashboardPresetHint').textContent = PRESET_HINTS[preset.id] || PRESET_HINTS.landscape;
+  const backgroundRatioTip = document.querySelector('.info-tip');
+  if (backgroundRatioTip) {
+    backgroundRatioTip.setAttribute('aria-label', BACKGROUND_RATIO_HINTS[preset.id] || BACKGROUND_RATIO_HINTS.landscape);
+  }
+  preview.style.removeProperty('aspect-ratio');
 }
 
 async function exportDashboard(format) {
@@ -522,7 +878,8 @@ async function exportDashboard(format) {
 
   try {
     const snapshot = createSnapshot(latestData);
-    const preset = getDashboardPresetById(currentPresetId);
+    const presetId = getCurrentDashboardPresetId();
+    const preset = getDashboardPresetById(presetId);
     const timestamp = formatTimestamp(new Date());
 
     if (format === 'json') {
@@ -542,12 +899,15 @@ async function exportDashboard(format) {
     } else {
       const backgroundMode = readBackgroundMode();
       const svg = createDashboardSvg(snapshot, {
-        presetId: currentPresetId,
+        presetId,
         backgroundMode,
+        defaultBackgroundOpacity: readDashboardDefaultBackgroundOpacity(),
         moduleIds: readDashboardModules(),
         themeColor: readDashboardThemeColor(),
         backgroundImage: readDashboardBackgroundImage(),
-        backgroundImageOpacity: readDashboardBackgroundOpacity()
+        backgroundImageOpacity: readDashboardBackgroundOpacity(),
+        accountName: readDashboardAccountName(),
+        avatarImage: readDashboardAvatarImage()
       });
       const filename = `allfans-dashboard-${preset.id}-${timestamp}.${format === 'jpg' ? 'jpg' : format}`;
 
@@ -556,7 +916,7 @@ async function exportDashboard(format) {
       } else {
         const rasterBlob = await renderRasterBlob(svg, preset, {
           mimeType: format === 'png' ? 'image/png' : 'image/jpeg',
-          backgroundMode
+          defaultBackgroundOpacity: readDashboardDefaultBackgroundOpacity()
         });
         downloadBlob(rasterBlob, filename);
       }
@@ -573,7 +933,7 @@ async function exportDashboard(format) {
   }
 }
 
-async function renderRasterBlob(svg, preset, { mimeType, backgroundMode }) {
+async function renderRasterBlob(svg, preset, { mimeType, defaultBackgroundOpacity }) {
   const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
   const svgUrl = URL.createObjectURL(svgBlob);
 
@@ -587,7 +947,7 @@ async function renderRasterBlob(svg, preset, { mimeType, backgroundMode }) {
       throw new Error('Canvas is not supported in this browser.');
     }
 
-    if (mimeType === 'image/jpeg' || backgroundMode !== 'translucent') {
+    if (mimeType === 'image/jpeg' || defaultBackgroundOpacity >= 1) {
       context.fillStyle = '#16120f';
       context.fillRect(0, 0, canvas.width, canvas.height);
     } else {

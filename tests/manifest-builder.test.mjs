@@ -21,6 +21,10 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
   ]);
   assert.deepEqual(manifest.web_accessible_resources, [
     {
+      resources: ['content/douyin-bridge.js'],
+      matches: ['https://creator.douyin.com/*']
+    },
+    {
       resources: ['content/xiaohongshu-bridge.js'],
       matches: ['https://creator.xiaohongshu.com/*']
     },
@@ -41,6 +45,15 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
   assert.ok(manifest.host_permissions.includes('https://weibo.com/*'));
   assert.ok(manifest.host_permissions.includes('https://www.weibo.com/*'));
   assert.ok(manifest.host_permissions.includes('https://me.weibo.com/*'));
+  assert.ok(
+    manifest.content_scripts.some(
+      entry =>
+        entry.matches?.includes('https://creator.douyin.com/*') &&
+        entry.js?.includes('content/douyin-bridge.js') &&
+        entry.run_at === 'document_start' &&
+        entry.world === 'MAIN'
+    )
+  );
   assert.ok(
     manifest.content_scripts.some(
       entry =>
@@ -66,6 +79,17 @@ test('chrome manifest keeps service worker, localhost permissions, and external 
         entry.js?.includes('content/weixin-channels-sync.js') &&
         entry.run_at === 'document_start' &&
         entry.all_frames === true
+    )
+  );
+  assert.ok(
+    manifest.content_scripts.some(
+      entry =>
+        entry.matches?.includes('https://weibo.com/*') &&
+        entry.matches?.includes('https://www.weibo.com/*') &&
+        entry.matches?.includes('https://me.weibo.com/*') &&
+        entry.js?.includes('content/weibo-bridge.js') &&
+        entry.run_at === 'document_start' &&
+        entry.world === 'MAIN'
     )
   );
   assert.ok(
